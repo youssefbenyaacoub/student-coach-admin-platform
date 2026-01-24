@@ -1,5 +1,4 @@
 import { X } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { useToast } from '../../hooks/useToast'
 
 const typeToClasses = {

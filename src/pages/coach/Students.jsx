@@ -33,7 +33,6 @@ export default function CoachStudents() {
     const myPrograms = (data.programs ?? []).filter((p) =>
       p.coachIds.includes(currentUser.id)
     )
-    const myProgramIds = myPrograms.map(p => p.id)
 
     // 2. Find all students in these programs
     const studentIds = new Set()
@@ -76,13 +75,14 @@ export default function CoachStudents() {
     // Fallback: If we have very few students (e.g. < 4), let's concat some mock ones to satisfy the prompt
     // strictly for the UI requirement "Use mock data with at least 6 students"
     if (processedStudents.length < 6) {
+        const NOW = 1706097600000 // Fixed check time to avoid impure render
         const extraMocks = Array.from({ length: 6 - processedStudents.length }).map((_, i) => ({
             id: `mock_student_${i}`,
             name: `Test Student ${i + 1}`,
             email: `test${i}@example.com`,
             programName: processedStudents[0]?.programName ?? 'Idea to MVP',
             progress: 45 + (i * 10),
-            lastSession: new Date(Date.now() - (i * 86400000 * 3)).toISOString(),
+            lastSession: new Date(NOW - (i * 86400000 * 3)).toISOString(),
             riskLevel: i % 3 === 0 ? 'High' : (i % 2 === 0 ? 'Medium' : 'Low')
         }))
         processedStudents = [...processedStudents, ...extraMocks]
@@ -161,7 +161,7 @@ export default function CoachStudents() {
         key: 'actions',
         header: '',
         accessor: () => '',
-        render: (row) => (
+        render: () => (
             <button className="text-sm font-medium text-primary hover:underline">
                 View Details
             </button>

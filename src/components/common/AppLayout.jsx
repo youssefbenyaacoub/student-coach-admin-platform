@@ -1,7 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { LogOut, Menu, Moon, Sun, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { useTheme } from '../../hooks/useTheme'

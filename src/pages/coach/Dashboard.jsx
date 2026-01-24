@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   XCircle
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import Card from '../../components/common/Card'
 import StatusBadge from '../../components/common/StatusBadge'
 import { useAuth } from '../../hooks/useAuth'
