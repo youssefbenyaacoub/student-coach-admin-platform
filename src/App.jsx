@@ -1,0 +1,111 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { roles } from './data/mockData'
+import AdminPanelLayout from './components/layouts/AdminPanelLayout'
+import CoachPanelLayout from './components/layouts/CoachPanelLayout'
+import StudentPanelLayout from './components/layouts/StudentPanelLayout'
+import ProtectedRoute from './components/common/ProtectedRoute'
+import Login from './pages/auth/Login'
+import AdminDashboard from './pages/admin/Dashboard'
+import AdminPrograms from './pages/admin/Programs'
+import AdminUsers from './pages/admin/Users'
+import AdminApplications from './pages/admin/Applications'
+import Placeholder from './pages/admin/Placeholder'
+import CoachDashboard from './pages/coach/Dashboard'
+import CoachPrograms from './pages/coach/Programs'
+import CoachSessions from './pages/coach/Sessions'
+import CoachDeliverables from './pages/coach/Deliverables'
+import CoachStudents from './pages/coach/Students'
+import StudentDashboard from './pages/student/Dashboard'
+import StudentPrograms from './pages/student/Programs'
+import StudentApplications from './pages/student/Applications'
+import StudentDeliverables from './pages/student/Deliverables'
+import Messages from './components/common/Messages'
+import Profile from './components/common/Profile'
+import Unauthorized from './pages/Unauthorized'
+import NotFound from './pages/NotFound'
+import { useAuth } from './hooks/useAuth'
+
+function RootRedirect() {
+  const { isAuthenticated, role } = useAuth()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+
+  if (role === roles.admin) return <Navigate to="/admin" replace />
+  if (role === roles.coach) return <Navigate to="/coach" replace />
+  return <Navigate to="/student" replace />
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={[roles.admin]}>
+            <AdminPanelLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="programs" element={<AdminPrograms />} />
+        <Route path="applications" element={<AdminApplications />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route
+          path="sessions"
+          element={<Placeholder title="Sessions overview" message="Coming next." />}
+        />
+        <Route
+          path="reports"
+          element={<Placeholder title="Reports" message="System analytics coming soon." />}
+        />
+        <Route
+          path="communications"
+          element={<Placeholder title="Communications" message="Platform messaging center." />}
+        />
+        <Route
+          path="settings"
+          element={<Placeholder title="Settings" message="Platform configuration." />}
+        />
+      </Route>
+
+      <Route
+        path="/coach"
+        element={
+          <ProtectedRoute allowedRoles={[roles.coach]}>
+            <CoachPanelLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<CoachDashboard />} />
+        <Route path="students" element={<CoachStudents />} />
+        <Route path="programs" element={<CoachPrograms />} />
+        <Route path="sessions" element={<CoachSessions />} />
+        <Route path="deliverables" element={<CoachDeliverables />} />
+        <Route path="messages" element={<Messages />} />
+        <Route path="profile" element={<Profile />} />
+      </Route>
+
+      <Route
+        path="/student"
+        element={
+          <ProtectedRoute allowedRoles={[roles.student]}>
+            <StudentPanelLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<StudentDashboard />} />
+        <Route path="programs" element={<StudentPrograms />} />
+        <Route path="applications" element={<StudentApplications />} />
+        <Route path="deliverables" element={<StudentDeliverables />} />
+        <Route path="messages" element={<Messages />} />
+        <Route path="profile" element={<Profile />} />
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
+}
+
