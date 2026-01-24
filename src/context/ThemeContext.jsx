@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { ThemeContext } from './ThemeContextBase'
 import { storage } from '../utils/storage'
 
-const STORAGE_KEY = 'sea_theme_v1'
+const STORAGE_KEY = 'sea_theme_v2'
 
 function getSystemPrefersDark() {
-  if (typeof window === 'undefined') return false
-  return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false
+  // Always return false to force light mode preference
+  return false
 }
 
 function resolveIsDark(mode) {
