@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { roles } from '../../data/mockData'
 import { useAuth } from '../../hooks/useAuth'
@@ -13,7 +13,7 @@ const roleOptions = [
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, isAuthenticated, role: userRole } = useAuth()
   const { listUsers, hydrated } = useData()
   const { push } = useToast()
 
@@ -21,10 +21,27 @@ export default function Login() {
   const [userId, setUserId] = useState('')
   const [busy, setBusy] = useState(false)
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const target = userRole === roles.admin ? '/admin' : userRole === roles.coach ? '/coach' : '/student'
+      navigate(target, { replace: true })
+    }
+  }, [isAuthenticated, userRole, navigate])
+
   const users = useMemo(() => {
     if (!hydrated) return []
     return listUsers({ role })
   }, [hydrated, listUsers, role])
+
+  // Show loading while redirecting
+  if (isAuthenticated) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"></div>
+      </div>
+    )
+  }
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -38,9 +55,9 @@ export default function Login() {
     try {
       await login({ user, role })
       push({ type: 'success', title: 'Welcome', message: `Signed in as ${user.name}` })
-
-      const target = role === roles.admin ? '/admin' : role === roles.coach ? '/coach' : '/student'
-      navigate(target, { replace: true })
+      // Navigation is handled by useEffect
+    } catch (err) {
+      console.error(err)
     } finally {
       setBusy(false)
     }

@@ -23,16 +23,16 @@ export default function StudentPanelLayout() {
   ]
 
   return (
-    <div className="min-h-screen bg-emerald-50/60 font-sans text-slate-800">
-      <div className="flex h-screen overflow-hidden">
+    <div className="min-h-screen bg-student-bg font-sans text-student-text">
+        <div className="flex h-screen overflow-hidden">
         {/* Sidebar - Friendly & Rounded */}
-        <aside className="w-64 bg-white m-4 rounded-3xl shadow-sm flex flex-col border border-emerald-100 hidden md:flex">
+        <aside className="w-64 bg-white m-4 rounded-3xl shadow-sm flex flex-col border border-blue-100 hidden md:flex">
           <div className="p-8 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-student-primary shadow-sm">
               <User className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="font-bold text-lg text-slate-800">Hello, {me?.name?.split(' ')[0] || 'Student'}!</h2>
+              <h2 className="font-heading font-bold text-lg text-slate-800">Hello, {me?.name?.split(' ')[0] || 'Student'}!</h2>
               <p className="text-xs text-slate-500 font-medium">Let's keep growing</p>
             </div>
           </div>
@@ -46,13 +46,13 @@ export default function StudentPanelLayout() {
                 className={({ isActive }) =>
                   `flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 group
                   ${isActive 
-                    ? 'bg-emerald-100 text-emerald-800 shadow-sm translate-x-1' 
-                    : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-700'
+                    ? 'bg-student-primary text-white shadow-md translate-x-1' 
+                    : 'text-slate-500 hover:bg-blue-50 hover:text-student-primary'
                   }`
                 }
               >
                 <item.icon className="h-6 w-6 stroke-[1.5]" />
-                <span className="font-semibold text-base">{item.label}</span>
+                <span className="font-heading font-semibold text-base">{item.label}</span>
               </NavLink>
             ))}
           </nav>
@@ -60,7 +60,7 @@ export default function StudentPanelLayout() {
           <div className="p-6">
              <button 
               onClick={onLogout}
-              className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-red-500 transition-colors py-4"
+              className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-red-500 transition-colors py-4 rounded-xl hover:bg-slate-50"
             >
               <LogOut className="h-5 w-5" />
               <span className="font-medium">Sign Out</span>
@@ -70,14 +70,14 @@ export default function StudentPanelLayout() {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-5xl mx-auto space-y-8">
              <Outlet />
           </div>
         </main>
       </div>
 
       {/* Mobile Nav (Bottom Bar) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around p-3 z-50">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         {navItems.map((item) => (
             <NavLink
             key={item.to}
@@ -85,11 +85,11 @@ export default function StudentPanelLayout() {
             end={item.end}
             className={({ isActive }) =>
                 `flex flex-col items-center gap-1 p-2 rounded-xl transition-colors
-                ${isActive ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400'}`
+                ${isActive ? 'text-student-primary bg-blue-50' : 'text-slate-400'}`
             }
             >
             <item.icon className="h-6 w-6" />
-            <span className="text-[10px] font-medium">{item.label}</span>
+            <span className="text-[10px] font-medium font-heading">{item.label}</span>
             </NavLink>
         ))}
       </div>

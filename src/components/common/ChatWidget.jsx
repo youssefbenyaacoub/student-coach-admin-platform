@@ -116,15 +116,22 @@ export default function ChatWidget() {
     setInput('')
   }
   
+  const roleColors = {
+      student: 'bg-student-primary text-white',
+      coach: 'bg-coach-primary text-white',
+      admin: 'bg-admin-primary text-white'
+  }
+  const myRoleColor = roleColors[currentUser?.role] || 'bg-blue-600 text-white'
+
   if (!currentUser) return null
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4 font-sans">
       {/* Window */}
       {isOpen && (
-        <div className="flex h-[500px] w-80 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl sm:w-96">
+        <div className="flex h-[500px] w-80 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:w-96 animate-in slide-in-from-bottom-10 fade-in duration-200">
             {/* Header */}
-            <div className="flex items-center justify-between bg-primary px-4 py-3 text-white shadow-md z-10">
+            <div className={`flex items-center justify-between px-5 py-4 shadow-sm z-10 ${myRoleColor}`}>
                 {activePeerId ? (
                     <div className="flex items-center gap-3">
                         <button 
@@ -133,18 +140,18 @@ export default function ChatWidget() {
                         >
                             <ChevronLeft className="h-5 w-5" />
                         </button>
-                        <div className="flex items-center gap-2">
-                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold ring-1 ring-white/40">
+                        <div className="flex items-center gap-3">
+                             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-sm font-heading font-bold ring-1 ring-white/40 shadow-sm">
                                 {activeConversation?.peerName.charAt(0)}
                              </div>
                              <div>
-                                <h3 className="text-sm font-semibold leading-none">{activeConversation?.peerName}</h3>
-                                <div className="text-[10px] text-blue-100/80">{activeConversation?.peerRole}</div>
+                                <h3 className="text-sm font-heading font-semibold leading-none">{activeConversation?.peerName}</h3>
+                                <div className="text-[10px] opacity-80 mt-0.5 uppercase tracking-wider font-medium">{activeConversation?.peerRole}</div>
                              </div>
                         </div>
                     </div>
                 ) : (
-                    <h3 className="text-lg font-bold">Messages</h3>
+                    <h3 className="text-lg font-heading font-bold tracking-tight">Messages</h3>
                 )}
                 <button 
                     onClick={() => setIsOpen(false)}
@@ -155,13 +162,13 @@ export default function ChatWidget() {
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto bg-slate-50 relative">
+            <div className="flex-1 overflow-y-auto bg-slate-50 relative scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                 {activePeerId ? (
                     // Thread View
                     <div className="flex min-h-full flex-col gap-3 p-4">
                         <div className="mt-auto flex flex-col gap-3">
                              {activeConversation?.messages.length === 0 && (
-                                <div className="text-center text-xs text-muted-foreground py-10">
+                                <div className="text-center text-xs text-slate-400 py-10 font-medium">
                                     Start a conversation with {activeConversation.peerName}
                                 </div>
                              )}
@@ -171,16 +178,16 @@ export default function ChatWidget() {
                                     <div
                                     key={msg.id}
                                     className={cn(
-                                        "flex w-max max-w-[80%] flex-col gap-1 rounded-2xl px-4 py-2 text-sm shadow-sm",
+                                        "flex w-max max-w-[85%] flex-col gap-1 rounded-2xl px-4 py-2.5 text-sm shadow-sm",
                                         isMe
-                                        ? "self-end bg-primary text-white rounded-br-none"
-                                        : "self-start bg-white text-foreground border border-border/50 rounded-bl-none"
+                                        ? `self-end rounded-br-none ${myRoleColor}`
+                                        : "self-start bg-white text-slate-700 border border-slate-100 rounded-bl-none"
                                     )}
                                     >
-                                    <p>{msg.content}</p>
+                                    <p className="leading-relaxed">{msg.content}</p>
                                     <span className={cn(
                                         "text-[10px]",
-                                        isMe ? "text-blue-100/70" : "text-muted-foreground/60"
+                                        isMe ? "opacity-70" : "text-slate-400"
                                     )}>
                                         {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
@@ -192,41 +199,44 @@ export default function ChatWidget() {
                     </div>
                 ) : (
                     // List View
-                    <div className="divide-y divide-border/50">
+                    <div className="divide-y divide-slate-100">
                         {conversations.length === 0 ? (
-                            <div className="flex h-full flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                            <div className="flex h-full flex-col items-center justify-center p-8 text-center text-slate-400">
                                 <MessageCircle className="h-12 w-12 opacity-20 mb-3" />
-                                <p className="text-sm">No messages yet</p>
+                                <p className="text-sm font-medium">No messages yet</p>
                             </div>
                         ) : (
                             conversations.map(conv => (
                                 <button
                                     key={conv.peerId}
                                     onClick={() => setActivePeerId(conv.peerId)}
-                                    className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/50"
+                                    className="flex w-full items-center gap-4 p-4 text-left transition-all hover:bg-slate-100/80 group"
                                 >
                                     <div className="relative">
-                                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                                         <div className={`flex h-12 w-12 items-center justify-center rounded-full text-white font-heading font-bold shadow-sm transition-transform group-hover:scale-105 ${
+                                            conv.peerRole === 'student' ? 'bg-student-primary' : 
+                                            conv.peerRole === 'coach' ? 'bg-coach-primary' : 'bg-slate-500'
+                                         }`}>
                                             {conv.peerName.charAt(0)}
                                          </div>
                                          {conv.unreadCount > 0 && (
-                                             <div className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
+                                             <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white shadow-sm">
                                                 {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
                                              </div>
                                          )}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="flex items-baseline justify-between">
-                                            <span className="font-semibold text-foreground truncate">{conv.peerName}</span>
+                                        <div className="flex items-baseline justify-between mb-0.5">
+                                            <span className="font-heading font-semibold text-slate-800 truncate">{conv.peerName}</span>
                                             {conv.lastMessage && (
-                                                <span className="text-[10px] text-muted-foreground shrink-0">
+                                                <span className="text-[10px] text-slate-400 shrink-0 font-medium">
                                                     {new Date(conv.lastMessage.sentAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                                 </span>
                                             )}
                                         </div>
                                         <p className={cn(
                                             "truncate text-xs",
-                                            conv.unreadCount > 0 ? "font-semibold text-foreground" : "text-muted-foreground"
+                                            conv.unreadCount > 0 ? "font-semibold text-slate-800" : "text-slate-500"
                                         )}>
                                             {conv.lastMessage?.content ?? 'No messages'}
                                         </p>
@@ -240,11 +250,11 @@ export default function ChatWidget() {
 
             {/* Footer Only in Thread View */}
             {activePeerId && (
-                <form onSubmit={handleSend} className="border-t border-border bg-background p-3">
-                    <div className="flex items-center gap-2 rounded-full border border-border bg-muted/30 px-3 py-1.5 focus-within:border-primary/50 focus-within:bg-background focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                <form onSubmit={handleSend} className="border-t border-slate-100 bg-white p-4">
+                    <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 focus-within:border-blue-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all shadow-inner">
                     <input
                         type="text"
-                        className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
+                        className="flex-1 bg-transparent text-sm placeholder:text-slate-400 focus:outline-none text-slate-700"
                         placeholder="Type a message..."
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -252,9 +262,12 @@ export default function ChatWidget() {
                     <button
                         type="submit"
                         disabled={!input.trim()}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white shadow-sm transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                        className={`flex h-8 w-8 items-center justify-center rounded-full text-white shadow-sm transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 ${
+                            currentUser.role === 'student' ? 'bg-student-primary' : 
+                            currentUser.role === 'coach' ? 'bg-coach-primary' : 'bg-admin-primary'
+                        }`}
                     >
-                        <Send className="h-4 w-4" />
+                        <Send className="h-3.5 w-3.5 ml-0.5" />
                     </button>
                     </div>
                 </form>
@@ -266,17 +279,17 @@ export default function ChatWidget() {
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-            "flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all hover:scale-105 active:scale-95",
-            isOpen ? "bg-muted text-foreground hover:bg-muted/80" : "bg-primary text-white hover:bg-primary/90"
+            "flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 z-50",
+            isOpen ? "bg-slate-100 text-slate-600 rotate-90" : `${myRoleColor}`
         )}
       >
         {isOpen ? (
-            <X className="h-7 w-7" />
+            <X className="h-8 w-8" />
         ) : (
             <div className="relative">
-                <MessageCircle className="h-7 w-7" />
+                <MessageCircle className="h-8 w-8" />
                 {totalUnread > 0 && (
-                     <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white ring-2 ring-white">
+                     <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white ring-2 ring-white animate-bounce">
                         {totalUnread > 9 ? '9+' : totalUnread}
                      </span>
                 )}

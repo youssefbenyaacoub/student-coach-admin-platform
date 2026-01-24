@@ -1,10 +1,15 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, BarChart3, Users, Settings, Activity, Layers, AlertCircle, Shield } from 'lucide-react'
+import { LogOut, BarChart3, Users, Settings, Activity, Layers, AlertCircle, Shield, Menu, Search, Bell } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useState } from 'react'
+import { useData } from '../../hooks/useData'
 
 export default function AdminPanelLayout() {
-  const { logout } = useAuth()
+  const { logout, currentUser } = useAuth()
   const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { getUserById } = useData()
+  const me = currentUser?.id ? getUserById(currentUser.id) : null
 
   const onLogout = () => {
     logout()
@@ -21,69 +26,170 @@ export default function AdminPanelLayout() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-900 flex flex-col">
-       {/* Top Navigation Bar - Flat & Serious */}
-       <header className="bg-slate-900 text-white h-14 flex items-center px-6 justify-between shadow-md z-20">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-red-500" />
-            <span className="font-bold tracking-wider text-sm uppercase">Admin<span className="text-slate-400">Panel</span></span>
-          </div>
-          
-          <div className="flex items-center gap-6">
-             <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                System Operational
-             </div>
-             <button onClick={onLogout} className="text-xs font-semibold text-slate-300 hover:text-white uppercase tracking-wide">
-               Logout
-             </button>
-          </div>
-       </header>
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col md:flex-row">
+      {/* Sidebar - Modern Dark Theme */}
+      <aside 
+        className={`bg-slate-900 text-white flex-shrink-0 transition-all duration-300 ease-in-out flex flex-col shadow-xl z-20 
+          ${sidebarOpen ? 'w-64' : 'w-20'}
+          hidden md:flex sticky top-0 h-screen
+        `}
+      >
+        <div className="h-16 flex items-center px-4 bg-slate-950/50 border-b border-white/5 justify-between">
+           {sidebarOpen && (
+              <div className="flex items-center gap-2">
+                 <div className="bg-admin-accent/20 p-1.5 rounded-lg">
+                    <Shield className="h-5 w-5 text-admin-accent" />
+                 </div>
+                 <span className="font-heading font-bold text-lg tracking-wide text-white">ADMIN</span>
+              </div>
+           )}
+           <button onClick={() => setSidebarOpen(!sidebarOpen)} className={`p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white ${!sidebarOpen && "mx-auto"}`}>
+              <Menu className="h-5 w-5" />
+           </button>
+        </div>
 
-       <div className="flex flex-1 overflow-hidden">
-          {/* Side Navigation */}
-          <aside className="w-56 bg-slate-800 flex flex-col py-4">
-             <div className="px-4 mb-6">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Navigation</p>
-             </div>
-             <nav className="flex-1">
-               {navItems.map((item) => (
-                 <NavLink
-                   key={item.to}
-                   to={item.to}
-                   end={item.end}
-                   className={({ isActive }) =>
-                     `flex items-center gap-3 px-4 py-3 text-sm font-medium border-l-4 transition-colors
-                     ${isActive 
-                       ? 'bg-slate-700/50 border-red-500 text-white' 
-                       : 'border-transparent text-slate-400 hover:bg-slate-700/30 hover:text-slate-200'
-                     }`
-                   }
-                 >
-                   <item.icon className="h-4 w-4" />
-                   {item.label}
-                 </NavLink>
-               ))}
-             </nav>
-             
-             <div className="mt-auto px-4 pt-4 border-t border-slate-700">
-                <div className="bg-slate-900 rounded p-3 text-xs text-slate-400 border border-slate-700">
-                   <div className="flex items-center gap-2 mb-1 text-slate-300 font-bold">
-                      <AlertCircle className="h-3 w-3" />
-                      Alerts
-                   </div>
-                   No critical issues detected.
+        <div className="px-4 py-6">
+            {sidebarOpen && <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 px-2">Main Menu</p>}
+            <nav className="space-y-1">
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
+                    ${isActive 
+                      ? 'bg-admin-primary text-white shadow-lg shadow-blue-900/20' 
+                      : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'
+                    }`
+                  }
+                >
+                  <item.icon className={`h-5 w-5 flex-shrink-0 transition-colors ${!sidebarOpen && "mx-auto"}`} />
+                  {sidebarOpen && <span>{item.label}</span>}
+                  
+                  {/* Tooltip for collapsed state could go here */}
+                </NavLink>
+              ))}
+            </nav>
+        </div>
+        
+        <div className="mt-auto p-4 border-t border-white/5 bg-black/20">
+             {sidebarOpen ? (
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 rounded-full bg-admin-primary flex items-center justify-center font-bold text-white shadow-md ring-2 ring-white/10">
+                        {me?.name?.charAt(0) || 'A'}
+                    </div>
+                    <div className="overflow-hidden">
+                        <div className="font-bold text-sm text-white truncate">{me?.name || 'Administrator'}</div>
+                        <div className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Online
+                        </div>
+                    </div>
                 </div>
-             </div>
-          </aside>
+             ) : (
+                <div className="flex justify-center mb-4">
+                    <div className="h-8 w-8 rounded-full bg-admin-primary flex items-center justify-center font-bold text-xs text-white">
+                        {me?.name?.charAt(0) || 'A'}
+                    </div>
+                </div>
+             )}
+             
+             <button 
+               onClick={onLogout}
+               className={`flex items-center gap-2 text-slate-400 hover:text-red-400 transition-colors w-full p-2 rounded-lg hover:bg-white/5 ${!sidebarOpen && "justify-center"}`}
+             >
+                <LogOut className="h-5 w-5" />
+                {sidebarOpen && <span className="text-sm font-medium">Sign Out</span>}
+             </button>
+        </div>
+      </aside>
+      
+      {/* Mobile Header & Nav */}
+      <div className="md:hidden flex flex-col">
+          <header className="h-16 bg-slate-900 text-white flex items-center justify-between px-4 shadow-md sticky top-0 z-30">
+               <div className="flex items-center gap-2">
+                 <div className="bg-admin-accent/20 p-1.5 rounded-lg">
+                    <Shield className="h-5 w-5 text-admin-accent" />
+                 </div>
+                 <span className="font-heading font-bold text-lg tracking-wide">ADMIN</span>
+               </div>
+               <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 text-slate-400 hover:text-white">
+                  <Menu className="h-6 w-6" />
+               </button>
+          </header>
+          
+          {/* Mobile Menu Dropdown */}
+          {sidebarOpen && (
+              <div className="bg-slate-800 text-white border-b border-white/10 p-4 space-y-2 animate-in slide-in-from-top-2">
+                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/10">
+                        <div className="h-10 w-10 rounded-full bg-admin-primary flex items-center justify-center font-bold text-white shadow-md ring-2 ring-white/10">
+                            {me?.name?.charAt(0) || 'A'}
+                        </div>
+                        <div>
+                            <div className="font-bold text-sm text-white">{me?.name || 'Administrator'}</div>
+                            <div className="text-xs text-emerald-400 font-medium">Online</div>
+                        </div>
+                  </div>
+                  {navItems.map((item) => (
+                    <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.end}
+                        onClick={() => setSidebarOpen(false)}
+                        className={({ isActive }) =>
+                            `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors
+                            ${isActive ? 'bg-admin-primary text-white' : 'text-slate-400 hover:bg-white/5'}`
+                        }
+                    >
+                        <item.icon className="h-5 w-5" />
+                        {item.label}
+                    </NavLink>
+                  ))}
+                  <button 
+                    onClick={onLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-white/5 mt-2"
+                  >
+                     <LogOut className="h-5 w-5" />
+                     Sign Out
+                  </button>
+              </div>
+          )}
+      </div>
 
-          {/* Main Workspace */}
-          <main className="flex-1 overflow-auto bg-slate-200/50 p-6">
-             <div className="max-w-7xl mx-auto">
-                <Outlet />
-             </div>
-          </main>
-       </div>
+      {/* M
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+         {/* Modern Header */}
+         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 sticky top-0">
+            <div className="flex items-center gap-4 text-slate-400">
+               <Search className="h-4 w-4" />
+               <input 
+                  type="text" 
+                  placeholder="Type to search..." 
+                  className="bg-transparent text-sm focus:outline-none text-slate-700 w-64 placeholder:text-slate-400"
+               />
+            </div>
+            
+            <div className="flex items-center gap-4">
+               <button className="relative p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+               </button>
+               <div className="h-8 w-px bg-slate-200 mx-2"></div>
+               <div className="text-right hidden sm:block">
+                  <div className="text-xs font-bold text-slate-900 uppercase tracking-wide">SEA Platform</div>
+                  <div className="text-[10px] text-slate-500">v2.4.0 (Stable)</div>
+               </div>
+            </div>
+         </header>
+
+         <main className="flex-1 overflow-auto bg-slate-50 p-6 md:p-8">
+            <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 slide-in-from-bottom-4">
+               <Outlet />
+            </div>
+         </main>
+      </div>
     </div>
   )
 }

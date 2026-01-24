@@ -19,11 +19,13 @@ import StatusBadge from '../../components/common/StatusBadge'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { formatDateTime, formatDate } from '../../utils/time'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '../../utils/cn'
 
 export default function CoachDashboard() {
   const { currentUser } = useAuth()
   const { data, sendMessage, markAsRead } = useData() 
+  const navigate = useNavigate()
   
   const [selectedStudentId, setSelectedStudentId] = useState(null)
   const [msgInput, setMsgInput] = useState('')
@@ -312,10 +314,10 @@ export default function CoachDashboard() {
                         <div className="p-4 border-t border-border bg-indigo-50/50 dark:bg-indigo-900/10">
                             <h3 className="text-xs font-semibold text-indigo-800 dark:text-indigo-300 mb-2">Quick Actions</h3>
                             <div className="grid grid-cols-2 gap-2">
-                                <button className="rounded-lg bg-white border border-indigo-100 px-3 py-2 text-xs font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 transition-colors">
+                                <button onClick={() => navigate('/coach/sessions')} className="rounded-lg bg-white border border-indigo-100 px-3 py-2 text-xs font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 transition-colors">
                                     Schedule Session
                                 </button>
-                                <button className="rounded-lg bg-white border border-indigo-100 px-3 py-2 text-xs font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 transition-colors">
+                                <button onClick={() => navigate('/coach/deliverables')} className="rounded-lg bg-white border border-indigo-100 px-3 py-2 text-xs font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 transition-colors">
                                     Assign Task
                                 </button>
                             </div>

@@ -112,7 +112,7 @@ export default function StudentDashboard() {
             time: null,
             icon: TrendingUp,
             actionLabel: 'View Project',
-            actionUrl: '/student/project'
+            actionUrl: '/student/programs'
         })
     }
 
@@ -152,17 +152,29 @@ export default function StudentDashboard() {
   const { student, project, phaseName } = context
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 animate-in fade-in py-4">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-500">
       
-      {/* 1. Welcome Header (Human Tone) */}
-      <header>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                Hello, {student.name.split(' ')[0]}. 👋
-            </h1>
-            <p className="mt-2 text-lg text-muted-foreground">
-                You're making solid progress on <span className="font-semibold text-primary">{project.name}</span>.
-                Let's see what needs your attention today.
-            </p>
+      {/* 1. Welcome Header */}
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-student-primary to-blue-600 px-8 py-10 shadow-xl text-white">
+            <div className="relative z-10">
+                <h1 className="text-4xl font-heading font-bold tracking-tight mb-3">
+                    Hello, {student.name.split(' ')[0]}. 👋
+                </h1>
+                <p className="text-lg text-blue-50 font-medium max-w-xl leading-relaxed">
+                    You're making solid progress on <span className="font-bold text-white bg-white/20 px-2 py-0.5 rounded-lg">{project.name}</span>.
+                    Let's continue pushing the boundaries today.
+                </p>
+                
+                <div className="mt-8 flex items-center gap-4">
+                     <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/20 px-4 py-2backdrop-blur-sm">
+                        <span className="text-xs font-bold uppercase tracking-wider text-blue-100">Current Phase</span>
+                        <span className="font-heading font-bold">{phaseName}</span>
+                     </div>
+                </div>
+            </div>
+            {/* Decorative background circles */}
+            <div className="absolute top-0 right-0 -mr-20 -mt-20 h-96 w-96 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-64 w-64 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
       </header>
 
       <div className="grid gap-8 md:grid-cols-5">
@@ -172,30 +184,46 @@ export default function StudentDashboard() {
             
             {/* Today's Focus */}
             <section>
-                <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-xl font-semibold">Your Focus Today</h2>
-                    <span className="text-sm text-muted-foreground">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                <div className="mb-5 flex items-center justify-between">
+                    <h2 className="text-xl font-heading font-bold text-slate-800 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-student-primary" />
+                        Priority Tasks
+                    </h2>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                        {new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                    </span>
                 </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {todaysTasks.map(task => {
                         const Icon = task.icon
                         return (
-                            <div key={task.id} className="group relative flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100 transition-all hover:shadow-md hover:border-primary/20 dark:bg-card dark:border-border">
-                                <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${task.type === 'session' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20'}`}>
-                                    <Icon className="h-6 w-6" />
+                            <div key={task.id} className="group relative flex items-center gap-5 rounded-2xl bg-white p-5 shadow-sm border border-slate-100 transition-all hover:shadow-lg hover:border-student-primary/30 hover:-translate-y-0.5 px-6">
+                                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner ${
+                                    task.type === 'session' 
+                                    ? 'bg-blue-50 text-blue-600' 
+                                    : 'bg-emerald-50 text-emerald-600'
+                                }`}>
+                                    <Icon className="h-7 w-7" />
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-foreground">{task.title}</h3>
-                                    {task.time && (
-                                        <p className="text-sm text-muted-foreground">
-                                            {formatDateTime(task.time)}
-                                        </p>
-                                    )}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+                                             task.type === 'session' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                                        }`}>
+                                            {task.type}
+                                        </span>
+                                        {task.time && (
+                                            <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                                                 • {formatDateTime(task.time)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <h3 className="font-semibold font-heading text-slate-800 text-lg truncate">{task.title}</h3>
                                 </div>
                                 <button 
                                     onClick={() => navigate(task.actionUrl)}
-                                    className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
+                                    className="shrink-0 rounded-xl bg-slate-50 px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:bg-student-primary hover:text-white hover:shadow-md active:scale-95"
                                 >
                                     {task.actionLabel}
                                 </button>

@@ -82,147 +82,115 @@ export default function DataTable({
   }
 
   return (
-    <div className="surface overflow-hidden p-0">
-      <div className="border-b border-border/50 bg-card/70 px-4 py-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            {title ? (
-              <div className="text-sm font-semibold text-card-foreground">{title}</div>
-            ) : null}
-            <div className="mt-1 text-sm text-muted-foreground">
-              {sorted.length} result{sorted.length === 1 ? '' : 's'}
-            </div>
+            {title && <h3 className="font-heading font-semibold text-slate-800">{title}</h3>}
+            <p className="text-sm text-slate-500 mt-1">{sorted.length} result{sorted.length !== 1 && 's'}</p>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <input
-                className="input pl-9"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value)
-                  setPage(1)
-                }}
-                placeholder={searchPlaceholder}
-                aria-label="Search table"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              {exportFilename ? (
-                <button type="button" className="btn-ghost" onClick={doExport}>
-                  <Download className="h-4 w-4" /> Export
-                </button>
-              ) : null}
-              {actions}
-            </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+             <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input 
+                  type="text"
+                  placeholder={searchPlaceholder}
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value)
+                    setPage(1)
+                  }}
+                  className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full md:w-64"
+                />
+             </div>
+             {actions}
+             <button onClick={doExport} className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors">
+                <Download className="h-4 w-4" />
+                Export
+             </button>
           </div>
-        </div>
       </div>
 
-      <div className="overflow-x-auto bg-card/30">
-        {sorted.length === 0 ? (
-          <div className="p-4">
-            <EmptyState title="No results" message="Try adjusting your filters or search." />
-          </div>
-        ) : (
-          <table className="min-w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-                {columns.map((c) => {
-                  const isSorted = sort?.key === c.key
-                  const dir = sort?.dir
-                  const sortable = c.sortable !== false
-                  return (
-                    <th key={c.key} className="px-3 py-3">
-                      <button
-                        type="button"
-                        className={
-                          sortable
-                            ? 'inline-flex items-center gap-1 rounded-lg px-1 py-1 hover:bg-accent hover:text-accent-foreground'
-                            : 'cursor-default'
-                        }
-                        onClick={sortable ? () => onSort(c.key) : undefined}
-                        aria-label={sortable ? `Sort by ${c.header}` : undefined}
-                      >
-                        {c.header}
-                        {sortable ? (
-                          <span className="inline-flex">
-                            {isSorted && dir === 'asc' ? (
-                              <ChevronUp className="h-3.5 w-3.5" />
-                            ) : isSorted && dir === 'desc' ? (
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            ) : (
-                              <span className="h-3.5 w-3.5" />
-                            )}
-                          </span>
-                        ) : null}
-                      </button>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+           <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase text-slate-500 tracking-wider">
+              <tr>
+                 {columns.map((c) => (
+                    <th 
+                        key={c.key} 
+                        className={`px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors ${c.align === 'right' ? 'text-right' : 'text-left'}`}
+                        onClick={() => onSort(c.key)}
+                    >
+                       <div className={`flex items-center gap-1 ${c.align === 'right' ? 'justify-end' : ''}`}>
+                          {c.header}
+                          <div className="flex flex-col">
+                             {sort?.key === c.key && sort.dir === 'asc' && <ChevronUp className="h-3 w-3" />}
+                             {sort?.key === c.key && sort.dir === 'desc' && <ChevronDown className="h-3 w-3" />}
+                          </div>
+                       </div>
                     </th>
-                  )
-                })}
+                 ))}
               </tr>
-            </thead>
-            <tbody>
-              {paged.map((r) => (
-                <tr
-                  key={getRowId ? getRowId(r) : r.id}
-                  className="border-b border-border/30 last:border-b-0 hover:bg-muted/50"
-                >
-                  {columns.map((c) => (
-                    <td key={c.key} className="px-3 py-2 align-top">
-                      {c.cell ? c.cell(r) : c.accessor(r)}
+           </thead>
+           <tbody className="divide-y divide-slate-100">
+               {paged.length === 0 ? (
+                  <tr>
+                    <td colSpan={columns.length} className="p-8 text-center text-slate-500">
+                      <EmptyState message="No results found" />
                     </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                  </tr>
+               ) : (
+                 paged.map((row, index) => (
+                    <tr key={getRowId ? getRowId(row) : (row.id || index)} className="hover:bg-slate-50/50 transition-colors">
+                       {columns.map((c) => (
+                          <td key={c.key} className={`px-6 py-4 whitespace-nowrap text-slate-600 ${c.align === 'right' ? 'text-right' : ''}`}>
+                             {c.cell ? c.cell(row) : c.accessor(row)}
+                          </td>
+                       ))}
+                    </tr>
+                 ))
+               )}
+           </tbody>
+        </table>
       </div>
-
-      {sorted.length > 0 ? (
-        <div className="flex flex-col gap-2 border-t border-border/50 bg-card/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-muted-foreground">
-            Page {safePage} of {totalPages}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <select
-              className="input w-auto"
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value))
-                setPage(1)
-              }}
-              aria-label="Rows per page"
-            >
-              {[5, 10, 20, 50].map((n) => (
-                <option key={n} value={n}>
-                  {n}/page
-                </option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage <= 1}
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage >= totalPages}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      ) : null}
+      
+      {totalPages > 1 && (
+         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-sm text-slate-500">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+               <select
+                 className="text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-slate-300"
+                 value={pageSize}
+                 onChange={(e) => {
+                   setPageSize(Number(e.target.value))
+                   setPage(1)
+                 }}
+               >
+                 {[5, 10, 20, 50].map((n) => (
+                   <option key={n} value={n}>{n} / page</option>
+                 ))}
+               </select>
+               <div className="flex gap-1 ml-2">
+                   <button 
+                    disabled={page <= 1}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1 text-sm border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                     Previous
+                   </button>
+                   <button 
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    className="px-3 py-1 text-sm border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                     Next
+                   </button>
+               </div>
+            </div>
+         </div>
+      )}
     </div>
   )
 }

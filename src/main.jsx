@@ -11,7 +11,7 @@ import Toasts from './components/common/Toasts.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ThemeProvider>
         <ToastProvider>
           <DataProvider>

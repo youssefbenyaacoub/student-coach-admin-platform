@@ -37,11 +37,11 @@ export default function StudentApplications() {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'approved':
-        return <CheckCircle className="h-5 w-5 text-success-700" />
+        return <CheckCircle className="h-5 w-5" />
       case 'rejected':
-        return <XCircle className="h-5 w-5 text-danger-700" />
+        return <XCircle className="h-5 w-5" />
       default:
-        return <Clock className="h-5 w-5 text-warning-700" />
+        return <Clock className="h-5 w-5" />
     }
   }
 
@@ -49,153 +49,104 @@ export default function StudentApplications() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">My Applications</h1>
-          <p className="mt-1 text-muted-foreground">
-            Track your program application status
-          </p>
+           <h1 className="text-3xl font-heading font-bold text-slate-900 dark:text-white">My Applications</h1>
+           <p className="mt-2 text-lg text-slate-500 font-medium">Track the status of your program applications.</p>
         </div>
         <EmptyState
           icon={ClipboardList}
-          title="No Applications Yet"
-          description="You haven't applied to any programs. Browse available programs and submit your first application!"
-          action={
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => navigate('/student/programs')}
-            >
-              Browse Programs
-            </button>
-          }
+          title="No Applications Found"
+          description="You haven't applied to any programs yet. Browse available programs to get started."
+          actionLabel="Browse Programs"
+          onAction={() => navigate('/student/programs')}
         />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">My Applications</h1>
-        <p className="mt-1 text-muted-foreground">
-          Track your program application status
+        <h1 className="text-3xl font-heading font-bold text-slate-900 dark:text-white">My Applications</h1>
+        <p className="mt-2 text-lg text-slate-500 font-medium">
+            Track the status of your program applications.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
-              <ClipboardList className="h-5 w-5" />
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200 flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700">
+            <div className="rounded-xl bg-blue-50 p-3 text-blue-600 dark:bg-blue-900/20">
+               <ClipboardList className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">Total</div>
-              <div className="text-2xl font-bold text-foreground">
-                {applicationStats.total}
-              </div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total</p>
+              <h3 className="text-2xl font-heading font-bold text-slate-900 dark:text-white">{applicationStats.total}</h3>
             </div>
-          </div>
-        </Card>
+        </div>
+        
+        <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200 flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700">
+            <div className="rounded-xl bg-amber-50 p-3 text-amber-600 dark:bg-amber-900/20">
+               <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Pending</p>
+              <h3 className="text-2xl font-heading font-bold text-slate-900 dark:text-white">{applicationStats.pending}</h3>
+            </div>
+        </div>
 
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-warning-500/10 text-warning-700">
-              <Clock className="h-5 w-5" />
+        <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200 flex items-center gap-4 dark:bg-slate-800 dark:border-slate-700">
+            <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600 dark:bg-emerald-900/20">
+               <CheckCircle className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">Pending</div>
-              <div className="text-2xl font-bold text-foreground">
-                {applicationStats.pending}
-              </div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Approved</p>
+              <h3 className="text-2xl font-heading font-bold text-slate-900 dark:text-white">{applicationStats.approved}</h3>
             </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-success-500/10 text-success-700">
-              <CheckCircle className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Approved</div>
-              <div className="text-2xl font-bold text-foreground">
-                {applicationStats.approved}
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-danger-500/10 text-danger-700">
-              <XCircle className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Rejected</div>
-              <div className="text-2xl font-bold text-foreground">
-                {applicationStats.rejected}
-              </div>
-            </div>
-          </div>
-        </Card>
+        </div>
       </div>
 
-      <Card>
-        <div className="space-y-3">
-          {myApplications.map((application) => (
-            <div
-              key={application.id}
-              className="flex items-start gap-4 rounded-lg border border-border/50 bg-muted/30 p-4"
-            >
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10">
-                {getStatusIcon(application.status)}
-              </div>
+      <div className="space-y-4">
+        <h2 className="text-xl font-heading font-bold text-slate-900 dark:text-white">Recent Applications</h2>
+        <div className="grid gap-4">
+          {myApplications.map((app) => (
+            <div key={app.id} className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-slate-200 transition-all hover:shadow-md hover:border-blue-200 dark:bg-slate-800 dark:border-slate-700">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                 <div className="flex items-start gap-4">
+                     <div className="hidden md:flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 font-bold text-lg dark:bg-slate-700">
+                         {getProgramName(app.programId).charAt(0)}
+                     </div>
+                     <div>
+                         <div className="flex items-center gap-3 mb-1">
+                             <h3 className="font-heading font-bold text-lg text-slate-900 dark:text-white">{getProgramName(app.programId)}</h3>
+                             <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border flex items-center gap-1 ${
+                                 app.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                 app.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                                 'bg-amber-50 text-amber-700 border-amber-200'
+                             }`}>
+                                 {getStatusIcon(app.status)}
+                                 {app.status}
+                             </div>
+                         </div>
+                         <p className="text-sm text-slate-500 font-medium">Submitted on {formatDate(app.submittedAt)}</p>
+                     </div>
+                 </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-foreground">
-                      {getProgramName(application.programId)}
-                    </h3>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      Applied on {formatDate(application.submittedAt)}
-                    </div>
-                  </div>
-                  <StatusBadge value={application.status} />
-                </div>
-
-                {application.motivation && (
-                  <div className="mt-3 rounded-lg bg-muted/50 p-3">
-                    <div className="text-xs font-medium text-muted-foreground">
-                      Motivation:
-                    </div>
-                    <p className="mt-1 text-sm text-foreground">
-                      {application.motivation}
-                    </p>
-                  </div>
-                )}
-
-                {application.reviewedAt && (
-                  <div className="mt-3 text-xs text-muted-foreground">
-                    Reviewed on {formatDate(application.reviewedAt)}
-                  </div>
-                )}
-
-                {application.status === 'approved' && (
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      className="btn-primary text-sm"
-                      onClick={() => navigate('/student/programs')}
-                    >
-                      View Program
-                    </button>
-                  </div>
-                )}
+                 <div className="flex items-center gap-4 md:ml-auto">
+                     {app.status === 'approved' && (
+                         <button onClick={() => navigate('/student/programs')} className="rounded-xl bg-student-primary px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-600 transition-colors">
+                             View Program
+                         </button>
+                     )}
+                     <div className="text-right">
+                         <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Application ID</div>
+                         <div className="text-sm font-mono text-slate-600">{app.id.slice(0, 8)}</div>
+                     </div>
+                 </div>
               </div>
             </div>
           ))}
         </div>
-      </Card>
+      </div>
     </div>
   )
 }
+

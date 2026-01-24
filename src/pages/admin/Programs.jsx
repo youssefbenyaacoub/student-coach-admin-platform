@@ -1,4 +1,4 @@
-import { Plus, RefreshCcw, Trash2, Eye, Edit } from 'lucide-react'
+import { Plus, RefreshCcw, Trash2, Eye, Edit, Search, Calendar, Users, Briefcase } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import Card from '../../components/common/Card'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
@@ -42,10 +42,20 @@ export default function AdminPrograms() {
   const [editing, setEditing] = useState(null)
   const [errors, setErrors] = useState({})
   const [busy, setBusy] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const [confirm, setConfirm] = useState({ open: false, programId: null })
 
-  const programs = data?.programs ?? []
+  const programs = useMemo(() => data?.programs ?? [], [data?.programs])
+
+  const filteredPrograms = useMemo(() => {
+     if (!searchTerm) return programs
+     const lower = searchTerm.toLowerCase()
+     return programs.filter(p => 
+        p.name.toLowerCase().includes(lower) || 
+        p.description.toLowerCase().includes(lower)
+     )
+  }, [programs, searchTerm])
 
   const defaultValues = useMemo(
     () => ({
@@ -137,205 +147,283 @@ export default function AdminPrograms() {
     return 'ongoing'
   }
 
-  const columns = [
-    {
-      key: 'name',
-      header: 'Program Name',
-      accessor: (p) => p.name,
-      sortValue: (p) => p.name,
-      cell: (p) => (
-        <div>
-          <div className="font-medium text-foreground">{p.name}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{p.description}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'duration',
-      header: 'Duration',
-      accessor: (p) => `${formatDate(p.startDate)} - ${formatDate(p.endDate)}`,
-      cell: (p) => (
-        <div className="text-sm">
-            <div>{p.durationWeeks} weeks</div>
-            <div className="text-xs text-muted-foreground">{formatDate(p.startDate)} - {formatDate(p.endDate)}</div>
-        </div>
-      )
-    },
-    {
-      key: 'students',
-      header: 'Students',
-      accessor: (p) => p.participantStudentIds?.length ?? 0,
-    },
-    {
-      key: 'coaches',
-      header: 'Coaches',
-      accessor: (p) => p.coachIds?.length ?? 0,
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      accessor: (p) => getComputedStatus(p),
-      cell: (p) => <StatusBadge value={getComputedStatus(p)} />,
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      accessor: () => '',
-      searchable: false,
-      sortable: false,
-      cell: (p) => (
-        <div className="flex items-center justify-end gap-2">
-          <button 
-             type="button" 
-             className="btn-ghost flex items-center gap-1 text-xs"
-             onClick={() => push({ type: 'info', title: 'Details', message: `Viewing details for ${p.name}` })}
-           >
-            <Eye className="h-4 w-4" /> View
-          </button>
-          <button type="button" className="btn-ghost flex items-center gap-1 text-xs" onClick={() => openEdit(p)}>
-            <Edit className="h-4 w-4" /> Edit
-          </button>
-           <button
-            type="button"
-            className="btn-ghost text-danger-700 hover:bg-danger-50"
-            onClick={() => setConfirm({ open: true, programId: p.id })}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      ),
-    },
-  ]
-
   return (
-    <div className="space-y-4">
-      <Card
-        title="Programs"
-        subtitle="Create, edit, archive, and manage cohorts"
-        actions={
-          <div className="flex items-center gap-2">
-            <button type="button" className="btn-ghost" onClick={() => reset()}>
-              <RefreshCcw className="h-4 w-4" /> Reset seed
+    <div className="space-y-8 animate-in fade-in duration-500">
+      
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-heading font-bold text-slate-900 dark:text-white">Programs</h1>
+          <p className="mt-2 text-lg text-slate-500 font-medium">Create, edit, archive, and manage cohorts.</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={() => reset()}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
+                title="Reset Data"
+            >
+                <RefreshCcw className="h-4 w-4" />
             </button>
-            <button type="button" className="btn-primary" onClick={openCreate}>
-              <Plus className="h-4 w-4" /> New program
+            <button 
+                onClick={openCreate}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 shadow-md shadow-slate-900/10 transition-colors dark:bg-white dark:text-slate-900"
+            >
+                <Plus className="h-4 w-4" /> New Program
             </button>
-          </div>
-        }
-      />
+        </div>
+      </div>
 
-      <DataTable
-        title="All programs"
-        rows={programs}
-        columns={columns}
-        exportFilename="programs.csv"
-        initialSort={{ key: 'name', dir: 'asc' }}
-      />
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+             <div className="flex items-center gap-3 mb-2">
+                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                     <Briefcase className="h-5 w-5" />
+                 </div>
+                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Programs</span>
+             </div>
+             <div className="text-2xl font-heading font-bold text-slate-900 dark:text-white">{programs.length}</div>
+         </div>
+         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+             <div className="flex items-center gap-3 mb-2">
+                 <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                     <Users className="h-5 w-5" />
+                 </div>
+                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Students</span>
+             </div>
+             <div className="text-2xl font-heading font-bold text-slate-900 dark:text-white">
+                 {programs.reduce((acc, p) => acc + (p.participantStudentIds?.length || 0), 0)}
+             </div>
+         </div>
+         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+             <div className="flex items-center gap-3 mb-2">
+                 <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                     <Calendar className="h-5 w-5" />
+                 </div>
+                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Ongoing</span>
+             </div>
+             <div className="text-2xl font-heading font-bold text-slate-900 dark:text-white">
+                 {programs.filter(p => getComputedStatus(p) === 'ongoing').length}
+             </div>
+         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="Search programs..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-300 transition-all dark:bg-slate-800 dark:border-slate-700"
+          />
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden dark:bg-slate-800 dark:border-slate-700">
+         <div className="overflow-x-auto">
+             <table className="w-full text-sm text-left">
+                 <thead className="bg-slate-50 text-slate-500 font-bold font-heading uppercase tracking-wider text-xs border-b border-slate-200 dark:bg-slate-900/50 dark:border-slate-700 dark:text-slate-400">
+                     <tr>
+                         <th className="px-6 py-4">Program Details</th>
+                         <th className="px-6 py-4">Duration</th>
+                         <th className="px-6 py-4">Capacity</th>
+                         <th className="px-6 py-4">Status</th>
+                         <th className="px-6 py-4 text-right">Actions</th>
+                     </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                     {filteredPrograms.map((p) => {
+                         const status = getComputedStatus(p)
+                         return (
+                             <tr key={p.id} className="group hover:bg-slate-50/80 transition-colors dark:hover:bg-slate-700/50">
+                                 <td className="px-6 py-4">
+                                     <div>
+                                         <div className="font-bold text-slate-900 text-base dark:text-white">{p.name}</div>
+                                         <div className="text-xs text-slate-500 mt-1 max-w-md truncate">{p.description}</div>
+                                     </div>
+                                 </td>
+                                 <td className="px-6 py-4">
+                                     <div className="flex flex-col gap-1">
+                                         <span className="text-slate-900 font-bold text-sm dark:text-white">{p.durationWeeks} Weeks</span>
+                                         <span className="text-xs text-slate-500">{formatDate(p.startDate)} - {formatDate(p.endDate)}</span>
+                                     </div>
+                                 </td>
+                                 <td className="px-6 py-4">
+                                     <div className="flex items-center gap-2">
+                                         <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                             <div 
+                                                className="h-full bg-slate-900 rounded-full" 
+                                                style={{ width: `${Math.min(((p.participantStudentIds?.length || 0) / p.capacity) * 100, 100)}%` }}
+                                             />
+                                         </div>
+                                         <span className="text-xs font-bold text-slate-600">
+                                             {p.participantStudentIds?.length || 0} / {p.capacity}
+                                         </span>
+                                     </div>
+                                 </td>
+                                 <td className="px-6 py-4">
+                                     <StatusBadge value={status} />
+                                 </td>
+                                 <td className="px-6 py-4 text-right">
+                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <button 
+                                             onClick={() => openEdit(p)}
+                                             className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                                         >
+                                             <Edit className="h-4 w-4" />
+                                         </button>
+                                         <button
+                                             onClick={() => setConfirm({ open: true, programId: p.id })}
+                                             className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                         >
+                                             <Trash2 className="h-4 w-4" />
+                                         </button>
+                                     </div>
+                                 </td>
+                             </tr>
+                         )
+                     })}
+                 </tbody>
+             </table>
+         </div>
+      </div>
 
       <Modal
-        open={open}
-        title={editing ? 'Edit program' : 'Create program'}
+        isOpen={open}
         onClose={busy ? undefined : () => setOpen(false)}
+        title={editing ? 'Edit Program' : 'New Program'}
         footer={
-          <>
-            <button type="button" className="btn-ghost" onClick={() => setOpen(false)} disabled={busy}>
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => setOpen(false)}
+              disabled={busy}
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
               Cancel
             </button>
-            <button type="button" className="btn-primary" onClick={onSave} disabled={busy}>
-              {busy ? 'Saving…' : 'Save'}
+            <button
+              onClick={onSave}
+              disabled={busy}
+              className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 dark:bg-white dark:text-slate-900"
+            >
+              {busy ? 'Saving...' : 'Save Program'}
             </button>
-          </>
+          </div>
         }
       >
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <label className="label">Name</label>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Name</label>
             <input
-              className="input"
+              className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all ${
+                errors.name ? 'border-red-300 focus:ring-red-100' : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
+              }`}
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Summer Cohort 2024"
             />
-            {errors.name ? <div className="mt-1 text-xs text-danger-700">{errors.name}</div> : null}
+            {errors.name && <p className="mt-1 text-xs font-bold text-red-500">{errors.name}</p>}
           </div>
-          <div className="md:col-span-2">
-            <label className="label">Description</label>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Description</label>
             <textarea
-              className="input min-h-24"
+              className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all min-h-[100px] ${
+                errors.description ? 'border-red-300 focus:ring-red-100' : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
+              }`}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Program goals, requirements..."
             />
-            {errors.description ? (
-              <div className="mt-1 text-xs text-danger-700">{errors.description}</div>
-            ) : null}
+            {errors.description && <p className="mt-1 text-xs font-bold text-red-500">{errors.description}</p>}
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Start Date</label>
+                <input
+                  type="date"
+                  className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all ${
+                    errors.startDate ? 'border-red-300 focus:ring-red-100' : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
+                  }`}
+                  value={form.startDate}
+                  onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                />
+                {errors.startDate && <p className="mt-1 text-xs font-bold text-red-500">{errors.startDate}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">End Date</label>
+                <input
+                  type="date"
+                  className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all ${
+                    errors.endDate ? 'border-red-300 focus:ring-red-100' : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
+                  }`}
+                  value={form.endDate}
+                  onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                />
+                {errors.endDate && <p className="mt-1 text-xs font-bold text-red-500">{errors.endDate}</p>}
+              </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Duration (Weeks)</label>
+                <input
+                  type="number"
+                  className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all ${
+                    errors.durationWeeks ? 'border-red-300 focus:ring-red-100' : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
+                  }`}
+                  value={form.durationWeeks}
+                  onChange={(e) => setForm((f) => ({ ...f, durationWeeks: e.target.value }))}
+                  min={1}
+                />
+                {errors.durationWeeks && <p className="mt-1 text-xs font-bold text-red-500">{errors.durationWeeks}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Capacity</label>
+                <input
+                  type="number"
+                  className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all ${
+                    errors.capacity ? 'border-red-300 focus:ring-red-100' : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
+                  }`}
+                  value={form.capacity}
+                  onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
+                  min={1}
+                />
+                {errors.capacity && <p className="mt-1 text-xs font-bold text-red-500">{errors.capacity}</p>}
+              </div>
+          </div>
+          
           <div>
-            <label className="label">Start date</label>
-            <input
-              type="date"
-              className="input"
-              value={form.startDate}
-              onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-            />
-            {errors.startDate ? (
-              <div className="mt-1 text-xs text-danger-700">{errors.startDate}</div>
-            ) : null}
-          </div>
-          <div>
-            <label className="label">End date</label>
-            <input
-              type="date"
-              className="input"
-              value={form.endDate}
-              onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-            />
-            {errors.endDate ? <div className="mt-1 text-xs text-danger-700">{errors.endDate}</div> : null}
-          </div>
-          <div>
-            <label className="label">Duration (weeks)</label>
-            <input
-              type="number"
-              className="input"
-              value={form.durationWeeks}
-              onChange={(e) => setForm((f) => ({ ...f, durationWeeks: e.target.value }))}
-              min={1}
-            />
-            {errors.durationWeeks ? (
-              <div className="mt-1 text-xs text-danger-700">{errors.durationWeeks}</div>
-            ) : null}
-          </div>
-          <div>
-            <label className="label">Capacity</label>
-            <input
-              type="number"
-              className="input"
-              value={form.capacity}
-              onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
-              min={1}
-            />
-            {errors.capacity ? (
-              <div className="mt-1 text-xs text-danger-700">{errors.capacity}</div>
-            ) : null}
-          </div>
-          <div className="md:col-span-2">
-            <label className="label">Status</label>
-            <select
-              className="input"
-              value={form.status}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-            >
-              <option value="active">active</option>
-              <option value="archived">archived</option>
-            </select>
+             <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Status</label>
+             <div className="relative">
+                <select
+                  className="w-full appearance-none rounded-xl border-slate-200 border px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 bg-white dark:bg-slate-800 dark:border-slate-700"
+                  value={form.status}
+                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                >
+                  <option value="active">Active</option>
+                  <option value="archived">Archived</option>
+                </select>
+                <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                     </svg>
+                 </div>
+             </div>
           </div>
         </div>
       </Modal>
 
       <ConfirmDialog
-        open={confirm.open}
-        title="Delete program?"
-        message="This removes the program from the prototype data. This cannot be undone (unless you reset seed)."
-        danger
-        confirmLabel="Delete"
+        isOpen={confirm.open}
+        title="Delete Program?"
+        description="This will permanently remove the program and its associated data."
+        confirmLabel="Delete Program"
+        isDanger
         onClose={() => setConfirm({ open: false, programId: null })}
         onConfirm={async () => {
           if (!confirm.programId) return
@@ -348,7 +436,7 @@ export default function AdminPrograms() {
             setBusy(false)
           }
         }}
-        busy={busy}
+        isLoading={busy}
       />
     </div>
   )

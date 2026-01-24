@@ -8,9 +8,33 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+        sans: ['Inter', 'Roboto', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        heading: ['Poppins', 'Montserrat', 'sans-serif'],
       },
       colors: {
+        // Role-based Layout Colors
+        student: {
+           primary: '#4f9cff',
+           secondary: '#a1d99b',
+           bg: '#f0f7ff',
+           card: '#ffffff',
+           text: '#1e293b'
+        },
+        coach: {
+           primary: '#5a3e99',
+           secondary: '#2c3e50', 
+           bg: '#f8fafc',
+           card: '#ffffff',
+           text: '#334155'
+        },
+        admin: {
+           primary: '#4a4a4a',
+           accent: '#c0392b',
+           bg: '#f3f4f6', 
+           card: '#ffffff',
+           text: '#111827'
+        },
+
         background: 'rgb(var(--color-background) / <alpha-value>)',
         foreground: 'rgb(var(--color-foreground) / <alpha-value>)',
         card: {

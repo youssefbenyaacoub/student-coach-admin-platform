@@ -19,6 +19,7 @@ import StudentDashboard from './pages/student/Dashboard'
 import StudentPrograms from './pages/student/Programs'
 import StudentApplications from './pages/student/Applications'
 import StudentDeliverables from './pages/student/Deliverables'
+import StudentSessions from './pages/student/Sessions'
 import Messages from './components/common/Messages'
 import Profile from './components/common/Profile'
 import Unauthorized from './pages/Unauthorized'
@@ -100,6 +101,7 @@ export default function App() {
         <Route path="programs" element={<StudentPrograms />} />
         <Route path="applications" element={<StudentApplications />} />
         <Route path="deliverables" element={<StudentDeliverables />} />
+        <Route path="sessions" element={<StudentSessions />} />
         <Route path="messages" element={<Messages />} />
         <Route path="profile" element={<Profile />} />
       </Route>
