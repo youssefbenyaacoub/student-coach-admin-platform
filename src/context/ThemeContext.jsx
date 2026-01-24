@@ -21,7 +21,7 @@ export function ThemeProvider({ children }) {
     if (stored?.mode === 'light' || stored?.mode === 'dark' || stored?.mode === 'system') {
       return stored.mode
     }
-    return 'system'
+    return 'light'
   })
 
   const isDark = useMemo(() => resolveIsDark(mode), [mode])
