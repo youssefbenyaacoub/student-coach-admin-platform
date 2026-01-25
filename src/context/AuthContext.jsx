@@ -180,13 +180,26 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
+      // 1. Mark user as offline explicitly while we still have the session
+      if (currentUser?.id) {
+           try {
+             await supabase.from('user_presence').upsert({ 
+                 user_id: currentUser.id, 
+                 online: false, 
+                 last_seen_at: new Date().toISOString() 
+             })
+           } catch {
+             // ignore if fails, proceed to logout
+           }
+      }
+
       const { error } = await supabase.auth.signOut()
       if (error) throw error
       setCurrentUser(null)
     } catch (error) {
       console.error('Logout error:', error)
     }
-  }, [])
+  }, [currentUser])
 
   const value = useMemo(
     () => ({

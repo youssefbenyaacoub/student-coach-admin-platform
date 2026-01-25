@@ -184,15 +184,18 @@ export default function Messages() {
   }, [currentUser?.id, activePeerId])
 
   useEffect(() => {
-      if (typingChannelRef.current) {
-          supabase.removeChannel(typingChannelRef.current)
-          typingChannelRef.current = null
-      }
-      setPeerTyping(false)
+    // Reset typing state when conversation changes
+    setPeerTyping(false)
 
-      if (!conversationKey || !activePeerId) return
+    // Clean up channel
+    if (typingChannelRef.current) {
+        supabase.removeChannel(typingChannelRef.current)
+        typingChannelRef.current = null
+    }
 
-      // Use a consistent channel name for broadcast
+    if (!conversationKey || !activePeerId) return
+
+    // Use a consistent channel name for broadcast
       const channel = supabase
           .channel(`typing:${conversationKey}`)
           .on('broadcast', { event: 'typing' }, (evt) => {
@@ -246,7 +249,7 @@ export default function Messages() {
             })
             lastTypingBroadcastRef.current = 0 // Reset
         }
-    } catch (_err) {
+    } catch {
         showToast('Failed to send message', 'error')
         setMessageInput(content) // Restore on fail
     }
@@ -305,7 +308,7 @@ export default function Messages() {
           setShowComposeModal(false)
           setActivePeerId(newMsgParams.recipientId)
           setNewMsgParams(startNewParams)
-      } catch (_err) {
+      } catch {
           showToast('Failed to start conversation', 'error')
       }
   }

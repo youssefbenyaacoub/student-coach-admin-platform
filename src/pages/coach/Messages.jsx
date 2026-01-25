@@ -158,14 +158,18 @@ export default function CoachMessages() {
   }, [currentUser?.id, activePeerId])
 
   useEffect(() => {
-      if (typingChannelRef.current) {
-          supabase.removeChannel(typingChannelRef.current)
-          typingChannelRef.current = null
-      }
-      setPeerTyping(false)
-      if (!conversationKey || !activePeerId) return
+    // Reset typing state when conversation changes
+    setPeerTyping(false)
 
-      const channel = supabase
+    // Clean up channel
+    if (typingChannelRef.current) {
+        supabase.removeChannel(typingChannelRef.current)
+        typingChannelRef.current = null
+    }
+
+    if (!conversationKey || !activePeerId) return
+
+    const channel = supabase
           .channel(`typing:${conversationKey}`)
           .on('broadcast', { event: 'typing' }, (evt) => {
               const from = evt?.payload?.from
@@ -207,7 +211,7 @@ export default function CoachMessages() {
             })
             lastTypingBroadcastRef.current = 0
         }
-    } catch (_err) {
+    } catch {
         showToast('Failed to send message', 'error')
         setMessageInput(content)
     }
@@ -252,7 +256,7 @@ export default function CoachMessages() {
           setShowComposeModal(false)
           setActivePeerId(newMsgParams.recipientId)
           setNewMsgParams(startNewParams)
-      } catch (_err) {
+      } catch {
           showToast('Failed to start conversation', 'error')
       }
   }

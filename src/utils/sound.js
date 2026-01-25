@@ -42,8 +42,6 @@ export const playMessageSound = async () => {
         }
     }
 
-    const now = ctx.currentTime
-
     // "Messenger"-style Ding: High-pitched, clean bell sound
     const t = ctx.currentTime
     

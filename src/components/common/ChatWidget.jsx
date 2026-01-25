@@ -401,8 +401,7 @@ export default function ChatWidget() {
                                                             payload: { from: currentUser.id, isTyping: false },
                                                         })
                                                         lastTypingBroadcastRef.current = 0
-                                                    }, 1500)   })
-                                                    }
+                                                    }, 1500)
                                                 }}
                     />
                     <button

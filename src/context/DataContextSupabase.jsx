@@ -231,6 +231,16 @@ export function DataProvider({ children }) {
         supabase.from('messages').select('*'),
       ])
 
+      // 1. Fetch message deletions (for "delete for me")
+      let messageDeletions = []
+      try {
+        const { data: delData } = await supabase.from('message_deletions').select('*')
+        messageDeletions = (delData || []).map(mapMessageDeletion)
+      } catch (err) {
+        // table might not exist in old schema
+        console.warn('Could not fetch message_deletions', err)
+      }
+
       // Transform data to match mock data structure (camelCase)
       const programs = (programsRes.data || []).map(mapProgram)
       const applications = (applicationsRes.data || []).map(mapApplication)
@@ -260,6 +270,7 @@ export function DataProvider({ children }) {
         coachingSessions: sessions,
         deliverables,
         messages,
+        messageDeletions,
         projects: projectStore.projects ?? [],
         projectSubmissions: projectStore.projectSubmissions ?? [],
         notifications,
@@ -270,12 +281,17 @@ export function DataProvider({ children }) {
       console.error('Error fetching data:', error)
       setHydrated(true)
     }
-  }, [mapApplication, mapCoachingSession, mapDeliverable, mapMessage, mapNotification, mapProgram, persistNotifications])
+  }, [mapApplication, mapCoachingSession, mapDeliverable, mapMessage, mapMessageDeletion, mapNotification, mapProgram, persistNotifications])
 
-  // Initial data fetch
+  // Initial data fetch & Refetch on Auth Change
   useEffect(() => {
-    fetchAllData()
-  }, [fetchAllData])
+    if (authUserId) {
+        fetchAllData()
+    } else {
+        // Optional: clear data on logout to be safe
+        // setData(prev => ({ ...prev, messages: [], deliverables: [], users: [] }))
+    }
+  }, [fetchAllData, authUserId])
 
   // Track Supabase auth user (DataProvider lives outside AuthProvider)
   useEffect(() => {

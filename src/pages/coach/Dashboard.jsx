@@ -24,7 +24,7 @@ import { cn } from '../../utils/cn'
 
 export default function CoachDashboard() {
   const { currentUser } = useAuth()
-  const { data, sendMessage, markAsRead } = useData() 
+  const { data, markAsRead } = useData() 
   const navigate = useNavigate()
   
   const [selectedStudentId, setSelectedStudentId] = useState(null)
