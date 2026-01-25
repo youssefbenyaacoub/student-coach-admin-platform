@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { useTheme } from '../../hooks/useTheme'
 import ChatWidget from './ChatWidget'
+import ConfirmDialog from './ConfirmDialog'
 
 function NavItems({ nav, onItemClick }) {
   return (
@@ -44,6 +45,8 @@ export default function AppLayout({ nav }) {
   const location = useLocation()
 
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
 
   const currentLabel = useMemo(
     () => nav.find((n) => location.pathname === n.to || location.pathname.startsWith(n.to + '/'))?.label,
@@ -60,9 +63,17 @@ export default function AppLayout({ nav }) {
     }
   }, [me?.role])
 
-  const onLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
+  const onLogout = () => setConfirmLogoutOpen(true)
+
+  const confirmLogout = async () => {
+    try {
+      setLogoutBusy(true)
+      await logout()
+      navigate('/login', { replace: true })
+    } finally {
+      setLogoutBusy(false)
+      setConfirmLogoutOpen(false)
+    }
   }
 
   return (
@@ -209,6 +220,18 @@ export default function AppLayout({ nav }) {
           <ChatWidget />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmLogoutOpen}
+        title="Sign out"
+        message="Are you sure you want to sign out?"
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        danger
+        busy={logoutBusy}
+        onClose={() => setConfirmLogoutOpen(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   )
 }

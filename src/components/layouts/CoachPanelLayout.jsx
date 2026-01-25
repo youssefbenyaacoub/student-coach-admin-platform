@@ -1,8 +1,10 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, LayoutDashboard, Users, CheckSquare, MessageSquare, Menu, Globe, Settings, Bell } from 'lucide-react'
+import { LogOut, LayoutDashboard, Users, CheckSquare, MessageSquare, Menu, Globe, Settings, FolderKanban } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { useState } from 'react'
+import ConfirmDialog from '../common/ConfirmDialog'
+import NotificationsBell from '../common/NotificationsBell'
 
 export default function CoachPanelLayout() {
   const { logout, currentUser } = useAuth()
@@ -11,13 +13,25 @@ export default function CoachPanelLayout() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  const onLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
+
+  const onLogout = () => setConfirmLogoutOpen(true)
+
+  const confirmLogout = async () => {
+    try {
+      setLogoutBusy(true)
+      await logout()
+      navigate('/login', { replace: true })
+    } finally {
+      setLogoutBusy(false)
+      setConfirmLogoutOpen(false)
+    }
   }
 
   const navItems = [
     { label: 'Dashboard', to: '/coach', icon: LayoutDashboard, end: true },
+    { label: 'Projects', to: '/coach/projects', icon: FolderKanban },
     { label: 'Students', to: '/coach/students', icon: Users },
     { label: 'Programs', to: '/coach/programs', icon: Globe },
     { label: 'Sessions', to: '/coach/sessions', icon: CheckSquare },
@@ -88,7 +102,7 @@ export default function CoachPanelLayout() {
       <div className="md:hidden flex flex-col shadow-md z-30 relative">
           <header className="h-16 bg-coach-secondary text-white flex items-center justify-between px-4">
                <div className="flex items-center gap-2">
-                 <span className="font-heading font-bold text-lg tracking-wide">COACH<span className="text-coach-primary font-normal ml-1 bg-white px-1 rounded text-xs py-0.5 text-black">PRO</span></span>
+                 <span className="font-heading font-bold text-lg tracking-wide">COACH<span className="font-normal ml-1 bg-white px-1 rounded text-xs py-0.5 text-black">PRO</span></span>
                </div>
                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 text-slate-300 hover:text-white">
                   <Menu className="h-6 w-6" />
@@ -139,10 +153,7 @@ export default function CoachPanelLayout() {
               Workspace
            </h1>
            <div className="flex items-center gap-4">
-              <button className="p-2 text-slate-400 hover:text-slate-600 relative rounded-full hover:bg-slate-100 transition-colors">
-                 <Bell className="h-5 w-5" />
-                 <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-              </button>
+              <NotificationsBell />
               <button className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
                  <Settings className="h-5 w-5" />
               </button>
@@ -156,6 +167,18 @@ export default function CoachPanelLayout() {
            </div>
         </main>
       </div>
+
+      <ConfirmDialog
+        open={confirmLogoutOpen}
+        title="Sign out"
+        message="Are you sure you want to sign out?"
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        danger
+        busy={logoutBusy}
+        onClose={() => setConfirmLogoutOpen(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   )
 }

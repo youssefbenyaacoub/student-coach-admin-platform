@@ -933,6 +933,9 @@ export const seedData = {
     },
   ],
 
+  projects: [],
+  projectSubmissions: [],
+
   activityLog: [
     {
       id: 'log_1',

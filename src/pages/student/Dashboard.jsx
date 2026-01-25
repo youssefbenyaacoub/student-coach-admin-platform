@@ -40,9 +40,9 @@ export default function StudentDashboard() {
 
   // 1. Get Student & Project Context
   const context = useMemo(() => {
-    if (!currentUser?.id || !data) return null
-    const student = data.users.find((u) => u.id === currentUser.id)
-    const project = PROJECT_DATA[student?.id] || PROJECT_DATA.default
+        if (!currentUser?.id || !data) return null
+        const student = (data.users ?? []).find((u) => u.id === currentUser.id) ?? null
+        const project = PROJECT_DATA[currentUser.id] || PROJECT_DATA[student?.id] || PROJECT_DATA.default
     const phaseName = PROJECT_PHASES[project.phaseIndex]
     const progressPercent = ((project.phaseIndex + 0.5) / PROJECT_PHASES.length) * 100
 
@@ -58,8 +58,8 @@ export default function StudentDashboard() {
     const now = new Date()
     const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000)
     
-    const sessions = (data.coachingSessions ?? [])
-      .filter((s) => s.attendeeStudentIds.includes(currentUser.id))
+        const sessions = (data.coachingSessions ?? [])
+            .filter((s) => (s.attendeeStudentIds ?? []).includes(currentUser.id))
       .filter((s) => {
         const d = new Date(s.startsAt)
         return d >= now && d <= next48h
@@ -79,11 +79,11 @@ export default function StudentDashboard() {
     })
 
     // B. Pending Deliverables (Overdue or Due Soon)
-    const deliverables = (data.deliverables ?? [])
-      .filter(d => d.assignedStudentIds.includes(currentUser.id))
+        const deliverables = (data.deliverables ?? [])
+            .filter(d => (d.assignedStudentIds ?? []).includes(currentUser.id))
       .filter(d => {
         // Not submitted
-        const sub = d.submissions?.find(s => s.studentId === currentUser.id)
+                const sub = (d.submissions ?? []).find(s => s.studentId === currentUser.id)
         if (sub) return false 
         // Due soon?
         const due = new Date(d.dueDate)
@@ -116,12 +116,14 @@ export default function StudentDashboard() {
         })
     }
 
-    return tasks.sort((a, b) => (a.time && b.time ? new Date(a.time) - new Date(b.time) : 0))
+        return tasks.sort((a, b) => (a.time && b.time ? new Date(a.time) - new Date(b.time) : 0))
   }, [currentUser, data])
 
   // 3. Get Coach Message Preview
   const coachMessage = useMemo(() => {
     if (!currentUser?.id || !data) return null
+
+    const users = data.users ?? []
     
     // Find last message from a coach
     const msgs = (data.messages ?? [])
@@ -129,27 +131,34 @@ export default function StudentDashboard() {
         .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
 
     const lastCoachMsg = msgs.find(m => {
-        const sender = data.users.find(u => u.id === m.senderId)
+        const sender = users.find(u => u.id === m.senderId)
         return sender?.role === 'coach'
     })
 
     if (!lastCoachMsg) return null
-    const coach = data.users.find(u => u.id === lastCoachMsg.senderId)
+    const coach = users.find(u => u.id === lastCoachMsg.senderId)
 
     return {
         id: lastCoachMsg.id,
         senderName: coach?.name || 'Coach',
-        senderAvatar: coach?.name.charAt(0),
-        text: lastCoachMsg.content,
+        senderAvatar: (coach?.name || 'C').charAt(0),
+        text: lastCoachMsg.content ?? '',
         time: lastCoachMsg.sentAt,
         isRead: !!lastCoachMsg.readAt
     }
 
   }, [currentUser, data])
 
+    if (!context) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <div className="text-muted-foreground">Loading dashboard…</div>
+            </div>
+        )
+    }
 
-  if (!context) return null
-  const { student, project, phaseName } = context
+    const { student, project, phaseName } = context
+    const displayName = (student?.name || currentUser?.name || 'Student').split(' ')[0]
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-500">
@@ -158,7 +167,7 @@ export default function StudentDashboard() {
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-student-primary to-blue-600 px-8 py-10 shadow-xl text-white">
             <div className="relative z-10">
                 <h1 className="text-4xl font-heading font-bold tracking-tight mb-3">
-                    Hello, {student.name.split(' ')[0]}. 👋
+                    Hello, {displayName}. 👋
                 </h1>
                 <p className="text-lg text-blue-50 font-medium max-w-xl leading-relaxed">
                     You're making solid progress on <span className="font-bold text-white bg-white/20 px-2 py-0.5 rounded-lg">{project.name}</span>.

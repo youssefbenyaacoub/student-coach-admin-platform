@@ -1,24 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { roles } from '../../data/mockData'
 import { useAuth } from '../../hooks/useAuth'
-import { useData } from '../../hooks/useData'
 import { useToast } from '../../hooks/useToast'
-
-const roleOptions = [
-  { value: roles.student, label: 'Student' },
-  { value: roles.coach, label: 'Coach' },
-  { value: roles.admin, label: 'Admin' },
-]
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login, isAuthenticated, role: userRole } = useAuth()
-  const { listUsers, hydrated } = useData()
+  const { login, signup, isAuthenticated, role: userRole } = useAuth()
   const { push } = useToast()
 
-  const [role, setRole] = useState(roles.admin)
-  const [userId, setUserId] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [role, setRole] = useState(roles.student)
   const [busy, setBusy] = useState(false)
 
   // Redirect if already authenticated
@@ -29,10 +24,42 @@ export default function Login() {
     }
   }, [isAuthenticated, userRole, navigate])
 
-  const users = useMemo(() => {
-    if (!hydrated) return []
-    return listUsers({ role })
-  }, [hydrated, listUsers, role])
+  const onSubmit = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      if (isSignUp) {
+        const result = await signup({ email, password, name, role })
+        if (result.success) {
+          if (result.needsEmailConfirmation) {
+            push({
+              type: 'success',
+              title: 'Confirm your email',
+              message: 'We sent you a confirmation email. After confirming, come back and sign in.',
+            })
+            setIsSignUp(false)
+          } else {
+            push({ type: 'success', title: 'Account Created', message: 'Signed in successfully!' })
+            // Auth state change will handle redirect
+          }
+        } else {
+          push({ type: 'danger', title: 'Signup Failed', message: result.error })
+        }
+      } else {
+        const result = await login({ email, password })
+        if (result.success) {
+          push({ type: 'success', title: 'Welcome', message: 'Signed in successfully' })
+        } else {
+          push({ type: 'danger', title: 'Login Failed', message: result.error || 'Invalid credentials' })
+        }
+      }
+    } catch (err) {
+      console.error(err)
+      push({ type: 'danger', title: 'Error', message: 'Something went wrong' })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   // Show loading while redirecting
   if (isAuthenticated) {
@@ -43,26 +70,6 @@ export default function Login() {
     )
   }
 
-  const onSubmit = async (e) => {
-    e.preventDefault()
-    const user = users.find((u) => u.id === userId)
-    if (!user) {
-      push({ type: 'warning', title: 'Pick a user', message: 'Select a demo user to continue.' })
-      return
-    }
-
-    setBusy(true)
-    try {
-      await login({ user, role })
-      push({ type: 'success', title: 'Welcome', message: `Signed in as ${user.name}` })
-      // Navigation is handled by useEffect
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <div className="app-container app-bg flex min-h-screen items-center justify-center px-4">
       <div className="surface-soft w-full max-w-md p-6">
@@ -71,61 +78,114 @@ export default function Login() {
             <span className="text-sm font-bold">SEA</span>
           </div>
           <div className="mt-3 text-lg font-semibold text-foreground">SEA Platform</div>
-          <div className="mt-1 text-sm text-muted-foreground">Sign in to the prototype</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            {isSignUp ? 'Create a new account' : 'Sign in to your account'}
+          </div>
         </div>
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+          {isSignUp && (
+            <>
+              <div>
+                <label className="label" htmlFor="name">
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  className="input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  autoComplete="name"
+                  placeholder="John Doe"
+                />
+              </div>
+              
+              <div>
+                <label className="label" htmlFor="role">
+                  Role
+                </label>
+                <select
+                  id="role"
+                  className="input"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                >
+                  <option value={roles.student}>Student</option>
+                  <option value={roles.coach}>Coach</option>
+                  {/* Admin signup hidden for security in production, but available here for prototype */}
+                  <option value={roles.admin}>Admin</option>
+                </select>
+              </div>
+            </>
+          )}
+
           <div>
-            <label className="label" htmlFor="role">
-              Role
+            <label className="label" htmlFor="email">
+              Email Address
             </label>
-            <select
-              id="role"
+            <input
+              id="email"
+              type="email"
               className="input"
-              value={role}
-              onChange={(e) => {
-                setRole(e.target.value)
-                setUserId('')
-              }}
-            >
-              {roleOptions.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+            />
           </div>
 
           <div>
-            <label className="label" htmlFor="user">
-              Demo user
+            <label className="label" htmlFor="password">
+              Password
             </label>
-            <select
-              id="user"
+            <input
+              id="password"
+              type="password"
               className="input"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              disabled={!hydrated}
-            >
-              <option value="">Select…</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.email})
-                </option>
-              ))}
-            </select>
-            <div className="mt-2 text-xs text-muted-foreground">
-              No password in prototype; uses mock users.
-            </div>
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              placeholder="••••••••"
+              minLength={6}
+            />
           </div>
 
-          <button type="submit" className="btn-primary w-full" disabled={busy}>
-            {busy ? 'Signing in…' : 'Sign in'}
+          <button
+            type="submit"
+            className="btn-primary w-full"
+            disabled={busy}
+          >
+            {busy ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
+                {isSignUp ? 'Creating Account...' : 'Signing in...'}
+              </>
+            ) : (
+              isSignUp ? 'create Account' : 'Sign In'
+            )}
           </button>
         </form>
 
-        <div className="mt-4 text-xs text-muted-foreground">
-          Tip: Admin role unlocks management features.
+        <div className="mt-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp)
+                setEmail('')
+                setPassword('')
+                setName('')
+              }}
+              className="font-semibold text-primary hover:text-primary-600 focus:outline-none focus:underline"
+            >
+              {isSignUp ? 'Sign in' : 'Create one'}
+            </button>
+          </p>
         </div>
       </div>
     </div>

@@ -10,7 +10,7 @@ import { formatDate } from '../../utils/time'
 
 export default function StudentPrograms() {
   const { currentUser } = useAuth()
-  const { data } = useData()
+  const { data, createApplication } = useData()
   const { showToast } = useToast()
   const [selectedProgram, setSelectedProgram] = useState(null)
   const [showEnrollModal, setShowEnrollModal] = useState(false)
@@ -60,10 +60,22 @@ export default function StudentPrograms() {
     setShowEnrollModal(true)
   }
 
-  const confirmEnroll = () => {
-    showToast('Application submitted successfully!', 'success')
-    setShowEnrollModal(false)
-    setSelectedProgram(null)
+  const confirmEnroll = async () => {
+    if (!currentUser?.id || !selectedProgram?.id) return
+
+    try {
+      await createApplication({
+        programId: selectedProgram.id,
+        studentId: currentUser.id,
+      })
+      showToast('Application submitted successfully!', 'success')
+    } catch (error) {
+      const msg = error?.message || 'Failed to submit application.'
+      showToast(msg, 'error')
+    } finally {
+      setShowEnrollModal(false)
+      setSelectedProgram(null)
+    }
   }
 
   const getProgramProgress = (programId) => {
@@ -181,6 +193,19 @@ export default function StudentPrograms() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {availablePrograms.map((program) => {
               const stats = programStats[program.id] ?? {}
+              const existingApp = (data?.applications ?? []).find(
+                (a) => a.programId === program.id && a.studentId === currentUser?.id,
+              )
+              const alreadyApplied = Boolean(existingApp)
+              const applyLabel = alreadyApplied
+                ? existingApp.status === 'pending'
+                  ? 'Application Submitted'
+                  : existingApp.status === 'accepted'
+                    ? 'Accepted'
+                    : existingApp.status === 'rejected'
+                      ? 'Rejected'
+                      : 'Applied'
+                : 'Apply Now'
 
               return (
                 <div key={program.id} className="flex flex-col rounded-2xl bg-white p-6 shadow-sm border border-slate-200 transition-all hover:shadow-xl hover:-translate-y-1">
@@ -219,10 +244,15 @@ export default function StudentPrograms() {
 
                   <button
                     type="button"
-                    className="mt-6 w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition-all hover:bg-slate-800 hover:shadow-xl active:scale-95"
+                    className={`mt-6 w-full rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all active:scale-95 ${
+                      alreadyApplied
+                        ? 'bg-slate-400 cursor-not-allowed shadow-slate-400/20'
+                        : 'bg-slate-900 shadow-slate-900/20 hover:bg-slate-800 hover:shadow-xl'
+                    }`}
                     onClick={() => handleEnroll(program)}
+                    disabled={alreadyApplied}
                   >
-                    Apply Now
+                    {applyLabel}
                   </button>
                 </div>
               )

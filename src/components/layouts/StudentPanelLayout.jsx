@@ -1,7 +1,10 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, User, Home, ClipboardList, Target, MessageCircle } from 'lucide-react'
+import { LogOut, User, Home, ClipboardList, Target, MessageCircle, FolderKanban } from 'lucide-react'
+import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
+import ConfirmDialog from '../common/ConfirmDialog'
+import NotificationsBell from '../common/NotificationsBell'
 
 export default function StudentPanelLayout() {
   const { logout, currentUser } = useAuth()
@@ -9,13 +12,25 @@ export default function StudentPanelLayout() {
   const me = currentUser?.id ? getUserById(currentUser.id) : null
   const navigate = useNavigate()
 
-  const onLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
+
+  const onLogout = () => setConfirmLogoutOpen(true)
+
+  const confirmLogout = async () => {
+    try {
+      setLogoutBusy(true)
+      await logout()
+      navigate('/login', { replace: true })
+    } finally {
+      setLogoutBusy(false)
+      setConfirmLogoutOpen(false)
+    }
   }
 
   const navItems = [
     { label: 'Home', to: '/student', icon: Home, end: true },
+    { label: 'Projects', to: '/student/projects', icon: FolderKanban },
     { label: 'My Tasks', to: '/student/deliverables', icon: Target },
     { label: 'My Progress', to: '/student/programs', icon: ClipboardList },
     { label: 'Messages', to: '/student/messages', icon: MessageCircle },
@@ -26,7 +41,7 @@ export default function StudentPanelLayout() {
     <div className="min-h-screen bg-student-bg font-sans text-student-text">
         <div className="flex h-screen overflow-hidden">
         {/* Sidebar - Friendly & Rounded */}
-        <aside className="w-64 bg-white m-4 rounded-3xl shadow-sm flex flex-col border border-blue-100 hidden md:flex">
+        <aside className="w-64 bg-white m-4 rounded-3xl shadow-sm flex-col border border-blue-100 hidden md:flex">
           <div className="p-8 flex items-center gap-3">
             <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-student-primary shadow-sm">
               <User className="h-6 w-6" />
@@ -70,8 +85,13 @@ export default function StudentPanelLayout() {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-5xl mx-auto space-y-8">
-             <Outlet />
+          <div className="max-w-5xl mx-auto space-y-4">
+            <div className="sticky top-0 z-40 flex justify-end bg-student-bg/80 backdrop-blur py-2">
+              <NotificationsBell />
+            </div>
+            <div className="space-y-8">
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>
@@ -93,6 +113,18 @@ export default function StudentPanelLayout() {
             </NavLink>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={confirmLogoutOpen}
+        title="Sign out"
+        message="Are you sure you want to sign out?"
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        danger
+        busy={logoutBusy}
+        onClose={() => setConfirmLogoutOpen(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   )
 }

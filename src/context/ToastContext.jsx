@@ -17,6 +17,7 @@ export function ToastProvider({ children }) {
       message: toast.message ?? '',
       type: toast.type ?? 'info',
       durationMs: toast.durationMs ?? 3500,
+      onClick: typeof toast.onClick === 'function' ? toast.onClick : null,
     }
 
     setToasts((prev) => [next, ...prev].slice(0, 5))
@@ -28,7 +29,21 @@ export function ToastProvider({ children }) {
     return id
   }, [dismiss])
 
-  const value = useMemo(() => ({ toasts, push, dismiss }), [toasts, push, dismiss])
+  // Backward-compatible helper used by older screens.
+  // Usage: showToast('Saved!', 'success')
+  const showToast = useCallback(
+    (message, type = 'info', title) => {
+      const normalizedType = type === 'error' ? 'danger' : type
+      return push({
+        type: normalizedType,
+        title: title ?? (normalizedType === 'danger' ? 'Error' : 'Notification'),
+        message: message ?? '',
+      })
+    },
+    [push],
+  )
+
+  const value = useMemo(() => ({ toasts, push, dismiss, showToast }), [toasts, push, dismiss, showToast])
 
   return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
 }

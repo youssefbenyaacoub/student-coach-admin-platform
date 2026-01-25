@@ -28,7 +28,6 @@ export default function CoachDashboard() {
   const navigate = useNavigate()
   
   const [selectedStudentId, setSelectedStudentId] = useState(null)
-  const [msgInput, setMsgInput] = useState('')
   const scrollRef = useRef(null)
 
   // 1. Gather all coach-relevant data
@@ -130,19 +129,6 @@ export default function CoachDashboard() {
       }
   }, [selectedStudentId, context, data, currentUser, markAsRead])
 
-
-  const handleSend = async (e) => {
-      e.preventDefault()
-      if (!msgInput.trim() || !selectedStudentId) return
-      await sendMessage({
-          senderId: currentUser.id,
-          receiverId: selectedStudentId,
-          content: msgInput
-      })
-      setMsgInput('')
-  }
-
-
   if (!currentUser || !context) return <div className="p-8">Loading...</div>
 
   return (
@@ -228,47 +214,69 @@ export default function CoachDashboard() {
                 {/* Content Grid */}
                 <div className="flex-1 overflow-hidden grid grid-rows-2 md:grid-rows-1 md:grid-cols-2">
                     
-                    {/* Chat Section */}
-                    <div className="flex flex-col border-r border-border h-full max-h-full">
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-950/20">
+                    {/* Activity Section (Replaced Chat) */}
+                    <div className="flex flex-col border-r border-border h-full max-h-full p-6 bg-slate-50/30">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold text-sm flex items-center gap-2 text-slate-700">
+                                <MessageSquare className="h-4 w-4" /> 
+                                Recent Communications
+                            </h3>
+                            <button 
+                                onClick={() => navigate('/coach/messages')} 
+                                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                            >
+                                Open Messenger <ChevronRight className="h-3 w-3" />
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                             {selectedData.messages.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm opacity-60">
-                                    <MessageSquare className="h-8 w-8 mb-2" />
-                                    No messages yet
+                                <div className="h-32 flex flex-col items-center justify-center text-muted-foreground text-sm opacity-60 border border-dashed border-slate-200 rounded-xl">
+                                    <MessageSquare className="h-6 w-6 mb-2" />
+                                    No history yet
                                 </div>
                             ) : (
-                                selectedData.messages.map(msg => {
+                                selectedData.messages.slice(-4).reverse().map(msg => {
                                     const isMe = msg.senderId === currentUser.id
                                     return (
-                                        <div key={msg.id} className={cn("flex w-full mb-3", isMe ? "justify-end" : "justify-start")}>
-                                            <div className={cn(
-                                                "max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-sm",
-                                                isMe ? "bg-primary text-white" : "bg-white border border-border text-foreground dark:bg-card"
-                                            )}>
-                                                {msg.content}
-                                                <div className={cn("text-[10px] mt-1 text-right opacity-70", isMe ? "text-primary-foreground" : "text-muted-foreground")}>
-                                                    {formatDateTime(msg.sentAt)}
-                                                </div>
+                                        <div key={msg.id} className={cn(
+                                            "p-3 rounded-xl border flex flex-col gap-1 transition-all hover:shadow-sm",
+                                            isMe ? "bg-white border-slate-100" : "bg-blue-50/30 border-blue-100"
+                                        )}>
+                                            <div className="flex justify-between items-start">
+                                                <span className={cn("text-xs font-bold", isMe ? "text-slate-700" : "text-blue-700")}>
+                                                    {isMe ? 'You' : selectedData.student.name}
+                                                </span>
+                                                <span className="text-[10px] text-slate-400">{formatDateTime(msg.sentAt)}</span>
                                             </div>
+                                            <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">{msg.content}</p>
                                         </div>
                                     )
                                 })
                             )}
-                            <div ref={scrollRef} />
                         </div>
-                        <form onSubmit={handleSend} className="p-3 border-t border-border bg-background">
-                            <div className="flex gap-2">
-                                <input 
-                                    value={msgInput}
-                                    onChange={e => setMsgInput(e.target.value)}
-                                    className="flex-1 rounded-full border border-input bg-muted/30 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Type a message..."
-                                />
-                                <button type="submit" disabled={!msgInput.trim()} className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-white hover:bg-primary/90 disabled:opacity-50">
-                                    <Send className="h-4 w-4" />
-                                </button>
+
+                        <div className="mt-6">
+                             <h3 className="font-semibold text-sm flex items-center gap-2 mb-3 text-slate-700">
+                                <Users className="h-4 w-4" /> 
+                                Student Stats
+                            </h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-white border border-slate-100 p-3 rounded-lg text-center">
+                                    <div className="text-xs text-slate-500 uppercase tracking-wide font-medium">Attention</div>
+                                    <div className={cn("mt-1 font-bold", 
+                                        selectedData.student.attentionLevel === 'high' ? "text-red-600" : 
+                                        selectedData.student.attentionLevel === 'medium' ? "text-amber-600" : "text-emerald-600"
+                                    )}>
+                                        {selectedData.student.attentionLevel.toUpperCase()}
+                                    </div>
+                                </div>
+                                <div className="bg-white border border-slate-100 p-3 rounded-lg text-center">
+                                    <div className="text-xs text-slate-500 uppercase tracking-wide font-medium">Late Tasks</div>
+                                    <div className="mt-1 font-bold text-slate-900">{selectedData.student.overdueCount}</div>
+                                </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
 
                     {/* Task & Feedback Section */}

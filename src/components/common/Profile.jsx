@@ -17,6 +17,7 @@ export default function Profile() {
   const { data } = useData()
   const { showToast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [editedProfile, setEditedProfile] = useState({
     name: currentUser?.name ?? '',
     email: currentUser?.email ?? '',
@@ -27,6 +28,8 @@ export default function Profile() {
   })
 
   const user = (data?.users ?? []).find((u) => u.id === currentUser?.id)
+
+  const maskedUserId = user?.id ? `${user.id.slice(0, 8)}…${user.id.slice(-4)}` : ''
 
   const handleEdit = () => {
     setIsEditing(true)
@@ -315,10 +318,41 @@ export default function Profile() {
                 <span className="text-muted-foreground">Role</span>
                 <span className="font-medium capitalize text-foreground">{role}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">User ID</span>
-                <span className="font-mono text-xs text-foreground">{user.id}</span>
+
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="text-xs font-semibold text-primary hover:text-primary-600 focus:outline-none focus:underline"
+                >
+                  {showAdvanced ? 'Hide advanced' : 'Show advanced'}
+                </button>
               </div>
+
+              {showAdvanced && user?.id && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">User ID</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-foreground" title={user.id}>
+                      {maskedUserId}
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(user.id)
+                          showToast('User ID copied to clipboard', 'success')
+                        } catch {
+                          showToast('Could not copy User ID', 'error')
+                        }
+                      }}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>

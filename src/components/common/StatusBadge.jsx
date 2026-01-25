@@ -10,6 +10,8 @@ const map = {
   active: 'success',
   archived: 'neutral',
   pending: 'warning',
+  reviewed: 'info',
+  approved: 'success',
   accepted: 'success',
   rejected: 'danger',
   scheduled: 'info',

@@ -32,6 +32,33 @@ export default function Toasts() {
               typeToClasses[t.type] ?? typeToClasses.info
             }`}
             role="status"
+            onClick={
+              typeof t.onClick === 'function'
+                ? () => {
+                    try {
+                      t.onClick()
+                    } finally {
+                      dismiss(t.id)
+                    }
+                  }
+                : undefined
+            }
+            tabIndex={typeof t.onClick === 'function' ? 0 : undefined}
+            onKeyDown={
+              typeof t.onClick === 'function'
+                ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      try {
+                        t.onClick()
+                      } finally {
+                        dismiss(t.id)
+                      }
+                    }
+                  }
+                : undefined
+            }
+            style={typeof t.onClick === 'function' ? { cursor: 'pointer' } : undefined}
           >
             <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">
@@ -46,7 +73,10 @@ export default function Toasts() {
             <button
               type="button"
               className="btn-ghost -mr-1 -mt-1 p-2"
-              onClick={() => dismiss(t.id)}
+              onClick={(e) => {
+                e.stopPropagation()
+                dismiss(t.id)
+              }}
               aria-label="Dismiss notification"
             >
               <X className="h-4 w-4" />

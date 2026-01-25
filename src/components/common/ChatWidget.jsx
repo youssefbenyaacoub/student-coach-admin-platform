@@ -2,17 +2,109 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessageCircle, X, ChevronLeft, Send, Search } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
+import { useToast } from '../../hooks/useToast'
 import { cn } from '../../utils/cn'
+import { supabase } from '../../lib/supabase'
+import { playMessageSound, primeAudioOnFirstUserGesture } from '../../utils/sound'
 
 export default function ChatWidget() {
   const { currentUser } = useAuth()
-  const { listMessages, sendMessage, getUserById, markAsRead } = useData()
+    const { listMessages, sendMessage, getUserById, markAsRead, getPresenceForUser } = useData()
+    const { push } = useToast()
   
   const [isOpen, setIsOpen] = useState(false)
 
   const [activePeerId, setActivePeerId] = useState(null)
   const [input, setInput] = useState('')
   const scrollRef = useRef(null)
+
+    // Prime audio once so message sounds are more likely to play (browser autoplay rules).
+    useEffect(() => {
+        primeAudioOnFirstUserGesture()
+    }, [])
+
+    // Toast + sound on incoming messages (even when chat is closed)
+    useEffect(() => {
+        const handler = async (evt) => {
+            const msg = evt?.detail?.message
+            if (!msg || !currentUser?.id) return
+
+            // Only notify for messages addressed to me
+            if (msg.receiverId !== currentUser.id) return
+
+            // If I'm already reading this conversation, don't interrupt
+            if (isOpen && activePeerId && msg.senderId === activePeerId) return
+
+            const sender = getUserById?.(msg.senderId)
+            const senderName = sender?.name ?? 'New message'
+            const preview = (msg.content ?? '').trim()
+            const message = preview.length > 80 ? `${preview.slice(0, 77)}...` : preview
+
+            push({
+                type: 'info',
+                title: `Message from ${senderName}`,
+                message,
+                durationMs: 5000,
+                onClick: () => {
+                    setIsOpen(true)
+                    setActivePeerId(msg.senderId)
+                },
+            })
+
+            // Best effort: play a short sound (may be blocked until a user gesture)
+            playMessageSound().catch(e => console.warn('Widget sound failed:', e))
+        }
+
+        window.addEventListener('sea:new-message', handler)
+        return () => window.removeEventListener('sea:new-message', handler)
+    }, [activePeerId, currentUser?.id, getUserById, isOpen, push])
+
+    const [peerTyping, setPeerTyping] = useState(false)
+    const [peerTypingFrom, setPeerTypingFrom] = useState(null)
+    const typingChannelRef = useRef(null)
+    const incomingTypingTimeoutRef = useRef(null)
+    const outgoingTypingTimeoutRef = useRef(null)
+    const lastTypingBroadcastRef = useRef(0)
+
+    const conversationKey = useMemo(() => {
+        if (!currentUser?.id || !activePeerId) return null
+        const a = String(currentUser.id)
+        const b = String(activePeerId)
+        return a < b ? `${a}:${b}` : `${b}:${a}`
+    }, [currentUser?.id, activePeerId])
+
+    useEffect(() => {
+        if (typingChannelRef.current) {
+            supabase.removeChannel(typingChannelRef.current)
+            typingChannelRef.current = null
+        }
+
+        if (!conversationKey || !activePeerId) return
+
+        const channel = supabase
+            .channel(`typing:${conversationKey}`)
+            .on('broadcast', { event: 'typing' }, (evt) => {
+                const from = evt?.payload?.from
+                const isTyping = Boolean(evt?.payload?.isTyping)
+                if (!from || from !== activePeerId) return
+
+                setPeerTypingFrom(from)
+                setPeerTyping(isTyping)
+                
+                if (incomingTypingTimeoutRef.current) window.clearTimeout(incomingTypingTimeoutRef.current)
+                if (isTyping) {
+                    incomingTypingTimeoutRef.current = window.setTimeout(() => setPeerTyping(false), 2500)
+                }
+            })
+            .subscribe()
+
+        typingChannelRef.current = channel
+        return () => {
+            supabase.removeChannel(channel)
+            if (incomingTypingTimeoutRef.current) window.clearTimeout(incomingTypingTimeoutRef.current)
+            if (outgoingTypingTimeoutRef.current) window.clearTimeout(outgoingTypingTimeoutRef.current)
+        }
+    }, [conversationKey, activePeerId])
 
   // 1. Get all messages for current user
   const myMessages = useMemo(() => {
@@ -114,6 +206,14 @@ export default function ChatWidget() {
         content: input
     })
     setInput('')
+
+        if (conversationKey) {
+            supabase.channel(`typing:${conversationKey}`).send({
+                type: 'broadcast',
+                event: 'typing',
+                payload: { from: currentUser.id, isTyping: false },
+            })
+        }
   }
   
   const roleColors = {
@@ -146,7 +246,14 @@ export default function ChatWidget() {
                              </div>
                              <div>
                                 <h3 className="text-sm font-heading font-semibold leading-none">{activeConversation?.peerName}</h3>
-                                <div className="text-[10px] opacity-80 mt-0.5 uppercase tracking-wider font-medium">{activeConversation?.peerRole}</div>
+                                                                <div className="text-[10px] opacity-80 mt-0.5 uppercase tracking-wider font-medium">
+                                                                    {(() => {
+                                                                        const p = getPresenceForUser ? getPresenceForUser(activePeerId) : null
+                                                                        if (p?.online) return 'ONLINE'
+                                                                        if (p?.lastSeenAt) return `LAST SEEN ${new Date(p.lastSeenAt).toLocaleString()}`
+                                                                        return String(activeConversation?.peerRole ?? '').toUpperCase()
+                                                                    })()}
+                                                                </div>
                              </div>
                         </div>
                     </div>
@@ -191,9 +298,20 @@ export default function ChatWidget() {
                                     )}>
                                         {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
+                                                                        {isMe ? (
+                                                                            <span className={cn("text-[10px]", "opacity-70")}>
+                                                                                {msg.readAt
+                                                                                    ? `Seen ${new Date(msg.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                                                                    : 'Sent'}
+                                                                            </span>
+                                                                        ) : null}
                                     </div>
                                 )
                              })}
+
+                                                        {peerTyping && peerTypingFrom === activePeerId ? (
+                                                            <div className="text-xs text-slate-500 px-2">{activeConversation?.peerName} is typing...</div>
+                                                        ) : null}
                             <div ref={scrollRef} />
                         </div>
                     </div>
@@ -257,7 +375,35 @@ export default function ChatWidget() {
                         className="flex-1 bg-transparent text-sm placeholder:text-slate-400 focus:outline-none text-slate-700"
                         placeholder="Type a message..."
                         value={input}
-                        onChange={(e) => setInput(e.target.value)}
+                                                onChange={(e) => {
+                                                    const next = e.target.value
+                                                    
+                                                    if (!conversationKey || !typingChannelRef.current) return
+
+                                                    if (outgoingTypingTimeoutRef.current) {
+                                                        clearTimeout(outgoingTypingTimeoutRef.current)
+                                                    }
+
+                                                    const now = Date.now()
+                                                    if (now - lastTypingBroadcastRef.current > 2000) {
+                                                        typingChannelRef.current.send({
+                                                            type: 'broadcast',
+                                                            event: 'typing',
+                                                            payload: { from: currentUser.id, isTyping: true },
+                                                        })
+                                                        lastTypingBroadcastRef.current = now
+                                                    }
+
+                                                    outgoingTypingTimeoutRef.current = setTimeout(() => {
+                                                        typingChannelRef.current?.send({
+                                                            type: 'broadcast',
+                                                            event: 'typing',
+                                                            payload: { from: currentUser.id, isTyping: false },
+                                                        })
+                                                        lastTypingBroadcastRef.current = 0
+                                                    }, 1500)   })
+                                                    }
+                                                }}
                     />
                     <button
                         type="submit"

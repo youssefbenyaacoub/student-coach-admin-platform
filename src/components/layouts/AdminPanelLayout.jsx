@@ -1,8 +1,10 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, BarChart3, Users, Settings, Activity, Layers, AlertCircle, Shield, Menu, Search, Bell } from 'lucide-react'
+import { LogOut, BarChart3, Users, Settings, Activity, Layers, AlertCircle, Shield, Menu, Search, FolderKanban } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useState } from 'react'
 import { useData } from '../../hooks/useData'
+import ConfirmDialog from '../common/ConfirmDialog'
+import NotificationsBell from '../common/NotificationsBell'
 
 export default function AdminPanelLayout() {
   const { logout, currentUser } = useAuth()
@@ -11,13 +13,25 @@ export default function AdminPanelLayout() {
   const { getUserById } = useData()
   const me = currentUser?.id ? getUserById(currentUser.id) : null
 
-  const onLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
-  }
+   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
+   const [logoutBusy, setLogoutBusy] = useState(false)
+
+   const onLogout = () => setConfirmLogoutOpen(true)
+
+   const confirmLogout = async () => {
+      try {
+         setLogoutBusy(true)
+         await logout()
+         navigate('/login', { replace: true })
+      } finally {
+         setLogoutBusy(false)
+         setConfirmLogoutOpen(false)
+      }
+   }
 
   const navItems = [
     { label: 'Overview', to: '/admin', icon: Activity, end: true },
+      { label: 'Projects', to: '/admin/projects', icon: FolderKanban },
     { label: 'Programs', to: '/admin/programs', icon: Layers },
     { label: 'Applications', to: '/admin/applications', icon: Layers },
     { label: 'Users', to: '/admin/users', icon: Users },
@@ -114,9 +128,12 @@ export default function AdminPanelLayout() {
                  </div>
                  <span className="font-heading font-bold text-lg tracking-wide">ADMIN</span>
                </div>
-               <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 text-slate-400 hover:text-white">
-                  <Menu className="h-6 w-6" />
-               </button>
+               <div className="flex items-center gap-2">
+                 <NotificationsBell buttonClassName="text-slate-300 hover:text-white hover:bg-white/10" />
+                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 text-slate-400 hover:text-white">
+                    <Menu className="h-6 w-6" />
+                 </button>
+               </div>
           </header>
           
           {/* Mobile Menu Dropdown */}
@@ -172,10 +189,7 @@ export default function AdminPanelLayout() {
             </div>
             
             <div className="flex items-center gap-4">
-               <button className="relative p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-               </button>
+               <NotificationsBell />
                <div className="h-8 w-px bg-slate-200 mx-2"></div>
                <div className="text-right hidden sm:block">
                   <div className="text-xs font-bold text-slate-900 uppercase tracking-wide">SEA Platform</div>
@@ -190,6 +204,18 @@ export default function AdminPanelLayout() {
             </div>
          </main>
       </div>
+
+         <ConfirmDialog
+            open={confirmLogoutOpen}
+            title="Sign out"
+            message="Are you sure you want to sign out?"
+            confirmLabel="Sign out"
+            cancelLabel="Cancel"
+            danger
+            busy={logoutBusy}
+            onClose={() => setConfirmLogoutOpen(false)}
+            onConfirm={confirmLogout}
+         />
     </div>
   )
 }

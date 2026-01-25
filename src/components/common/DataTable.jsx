@@ -118,14 +118,21 @@ export default function DataTable({
                  {columns.map((c) => (
                     <th 
                         key={c.key} 
-                        className={`px-6 py-3 cursor-pointer hover:bg-slate-100 transition-colors ${c.align === 'right' ? 'text-right' : 'text-left'}`}
-                        onClick={() => onSort(c.key)}
+                    className={`px-6 py-3 transition-colors ${c.sortable === false ? '' : 'cursor-pointer hover:bg-slate-100'} ${c.align === 'right' ? 'text-right' : 'text-left'}`}
+                    onClick={() => {
+                      if (c.sortable === false) return
+                      onSort(c.key)
+                    }}
                     >
                        <div className={`flex items-center gap-1 ${c.align === 'right' ? 'justify-end' : ''}`}>
                           {c.header}
                           <div className="flex flex-col">
-                             {sort?.key === c.key && sort.dir === 'asc' && <ChevronUp className="h-3 w-3" />}
-                             {sort?.key === c.key && sort.dir === 'desc' && <ChevronDown className="h-3 w-3" />}
+                        {c.sortable === false ? null : (
+                         <>
+                          {sort?.key === c.key && sort.dir === 'asc' && <ChevronUp className="h-3 w-3" />}
+                          {sort?.key === c.key && sort.dir === 'desc' && <ChevronDown className="h-3 w-3" />}
+                         </>
+                        )}
                           </div>
                        </div>
                     </th>

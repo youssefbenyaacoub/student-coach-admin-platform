@@ -47,6 +47,8 @@ export default function AdminPrograms() {
   const [confirm, setConfirm] = useState({ open: false, programId: null })
 
   const programs = useMemo(() => data?.programs ?? [], [data?.programs])
+  const coaches = useMemo(() => (data?.users ?? []).filter((u) => u.role === 'coach'), [data?.users])
+  const students = useMemo(() => (data?.users ?? []).filter((u) => u.role === 'student'), [data?.users])
 
   const filteredPrograms = useMemo(() => {
      if (!searchTerm) return programs
@@ -67,6 +69,8 @@ export default function AdminPrograms() {
       endDate: toDateInput(editing?.endDate) ?? '',
       capacity: editing?.capacity ?? 20,
       status: editing?.status ?? 'active',
+      coachIds: editing?.coachIds ?? [],
+      participantStudentIds: editing?.participantStudentIds ?? [],
     }),
     [editing],
   )
@@ -84,6 +88,8 @@ export default function AdminPrograms() {
       endDate: '',
       capacity: 20,
       status: 'active',
+      coachIds: [],
+      participantStudentIds: [],
     })
     setErrors({})
     setOpen(true)
@@ -100,6 +106,8 @@ export default function AdminPrograms() {
       endDate: toDateInput(p.endDate),
       capacity: p.capacity,
       status: p.status,
+      coachIds: p.coachIds ?? [],
+      participantStudentIds: p.participantStudentIds ?? [],
     })
     setErrors({})
     setOpen(true)
@@ -127,6 +135,8 @@ export default function AdminPrograms() {
         endDate: fromDateInput(next.endDate),
         capacity: next.capacity,
         status: next.status,
+        coachIds: next.coachIds ?? [],
+        participantStudentIds: next.participantStudentIds ?? [],
       })
       push({ type: 'success', title: 'Saved', message: 'Program updated.' })
       setOpen(false)
@@ -414,6 +424,68 @@ export default function AdminPrograms() {
                      </svg>
                  </div>
              </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200">Assign coaches</div>
+              <div className="mt-1 text-xs text-slate-500">Coaches can manage sessions and review submissions for this cohort.</div>
+              <div className="mt-3 space-y-2 max-h-48 overflow-auto pr-1">
+                {coaches.length === 0 ? (
+                  <div className="text-sm text-slate-500">No coaches found.</div>
+                ) : (
+                  coaches.map((c) => {
+                    const checked = (form.coachIds ?? []).includes(c.id)
+                    return (
+                      <label key={c.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const nextIds = new Set(form.coachIds ?? [])
+                            if (e.target.checked) nextIds.add(c.id)
+                            else nextIds.delete(c.id)
+                            setForm((f) => ({ ...f, coachIds: Array.from(nextIds) }))
+                          }}
+                        />
+                        <span className="font-medium">{c.name}</span>
+                        <span className="text-xs text-slate-400 truncate">{c.email}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200">Enroll students</div>
+              <div className="mt-1 text-xs text-slate-500">Students enrolled here will see the program in their dashboard.</div>
+              <div className="mt-3 space-y-2 max-h-48 overflow-auto pr-1">
+                {students.length === 0 ? (
+                  <div className="text-sm text-slate-500">No students found.</div>
+                ) : (
+                  students.map((s) => {
+                    const checked = (form.participantStudentIds ?? []).includes(s.id)
+                    return (
+                      <label key={s.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const nextIds = new Set(form.participantStudentIds ?? [])
+                            if (e.target.checked) nextIds.add(s.id)
+                            else nextIds.delete(s.id)
+                            setForm((f) => ({ ...f, participantStudentIds: Array.from(nextIds) }))
+                          }}
+                        />
+                        <span className="font-medium">{s.name}</span>
+                        <span className="text-xs text-slate-400 truncate">{s.email}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </Modal>

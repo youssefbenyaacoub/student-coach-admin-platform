@@ -2,17 +2,19 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
-export default function Modal({ open, title, children, onClose, footer }) {
+export default function Modal({ open, isOpen, title, children, onClose, footer }) {
+  const visible = open ?? isOpen ?? false
+
   useEffect(() => {
-    if (!open) return
+    if (!visible) return
     const onKey = (e) => {
       if (e.key === 'Escape') onClose?.()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [visible, onClose])
 
-  if (!open) return null
+  if (!visible) return null
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

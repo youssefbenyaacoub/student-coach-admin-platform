@@ -10,12 +10,16 @@ import AdminPrograms from './pages/admin/Programs'
 import AdminUsers from './pages/admin/Users'
 import AdminApplications from './pages/admin/Applications'
 import Placeholder from './pages/admin/Placeholder'
+import AdminProjects from './pages/admin/Projects'
 import CoachDashboard from './pages/coach/Dashboard'
+import CoachProjects from './pages/coach/Projects'
 import CoachPrograms from './pages/coach/Programs'
 import CoachSessions from './pages/coach/Sessions'
 import CoachDeliverables from './pages/coach/Deliverables'
 import CoachStudents from './pages/coach/Students'
+import CoachMessages from './pages/coach/Messages'
 import StudentDashboard from './pages/student/Dashboard'
+import StudentProjects from './pages/student/Projects'
 import StudentPrograms from './pages/student/Programs'
 import StudentApplications from './pages/student/Applications'
 import StudentDeliverables from './pages/student/Deliverables'
@@ -51,6 +55,7 @@ export default function App() {
         }
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="projects" element={<AdminProjects />} />
         <Route path="programs" element={<AdminPrograms />} />
         <Route path="applications" element={<AdminApplications />} />
         <Route path="users" element={<AdminUsers />} />
@@ -81,11 +86,12 @@ export default function App() {
         }
       >
         <Route index element={<CoachDashboard />} />
+        <Route path="projects" element={<CoachProjects />} />
         <Route path="students" element={<CoachStudents />} />
         <Route path="programs" element={<CoachPrograms />} />
         <Route path="sessions" element={<CoachSessions />} />
         <Route path="deliverables" element={<CoachDeliverables />} />
-        <Route path="messages" element={<Messages />} />
+        <Route path="messages" element={<CoachMessages />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 
@@ -98,6 +104,7 @@ export default function App() {
         }
       >
         <Route index element={<StudentDashboard />} />
+        <Route path="projects" element={<StudentProjects />} />
         <Route path="programs" element={<StudentPrograms />} />
         <Route path="applications" element={<StudentApplications />} />
         <Route path="deliverables" element={<StudentDeliverables />} />
