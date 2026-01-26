@@ -15,6 +15,16 @@ const PROJECTS_STORAGE_KEY = 'sea_projects_v1'
 const PROJECTS_MIGRATION_KEY_PREFIX = 'sea_projects_migrated_v1:'
 const NOTIFICATIONS_STORAGE_KEY = 'sea_notifications_v1'
 
+// Local projects fallback is useful for prototyping before DB tables/policies exist,
+// but it can be confusing in production because it creates "phantom" data that
+// doesn't exist in Supabase. Default: enabled in dev only.
+const ALLOW_LOCAL_PROJECTS_FALLBACK =
+  import.meta.env.VITE_ALLOW_LOCAL_PROJECTS_FALLBACK === 'true' || import.meta.env.DEV
+
+// One-time migration from localStorage -> Supabase is also dev-oriented.
+const ALLOW_LOCAL_PROJECTS_MIGRATION =
+  import.meta.env.VITE_MIGRATE_LOCAL_PROJECTS_TO_SUPABASE === 'true' || import.meta.env.DEV
+
 const ensureProjectsStore = () => {
   const existing = storage.get(PROJECTS_STORAGE_KEY, null)
   if (existing && Array.isArray(existing.projects) && Array.isArray(existing.projectSubmissions)) {
@@ -292,32 +302,28 @@ export function DataProvider({ children }) {
       const messages = (messagesRes.data || []).map(mapMessage)
 
       // 2. Fetch projects & submissions from Supabase if available, else fall back to local store.
-      let projects = projectStore.projects ?? []
-      let projectSubmissions = projectStore.projectSubmissions ?? []
+      let projects = ALLOW_LOCAL_PROJECTS_FALLBACK ? (projectStore.projects ?? []) : []
+      let projectSubmissions = ALLOW_LOCAL_PROJECTS_FALLBACK ? (projectStore.projectSubmissions ?? []) : []
       try {
         const [projectsRes, submissionsRes] = await Promise.all([
           supabase.from('projects').select('*').order('updated_at', { ascending: false }),
           supabase.from('project_submissions').select('*').order('created_at', { ascending: true }),
         ])
 
-        if (projectsRes.error) {
-          console.warn('Supabase projects query failed:', projectsRes.error)
-        }
-        if (submissionsRes.error) {
-          console.warn('Supabase project_submissions query failed:', submissionsRes.error)
+        if (projectsRes.error) throw projectsRes.error
+        if (submissionsRes.error) throw submissionsRes.error
+
+        if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
+          // Ensure we don't keep showing stale local projects once Supabase is available.
+          storage.remove(PROJECTS_STORAGE_KEY)
         }
 
-        if (!projectsRes.error && Array.isArray(projectsRes.data)) {
-          projects = projectsRes.data.map(mapProjectRow)
-        }
-
-        if (!submissionsRes.error && Array.isArray(submissionsRes.data)) {
-          projectSubmissions = submissionsRes.data.map(mapProjectSubmissionRow)
-        }
+        projects = (projectsRes.data ?? []).map(mapProjectRow)
+        projectSubmissions = (submissionsRes.data ?? []).map(mapProjectSubmissionRow)
 
         // One-time migration: if the tables exist, import any local projects for the current user.
         // This helps when projects were created earlier before Supabase tables were installed.
-        if (!projectsRes.error && !submissionsRes.error && authUserId) {
+        if (ALLOW_LOCAL_PROJECTS_MIGRATION && authUserId) {
           const migrationKey = `${PROJECTS_MIGRATION_KEY_PREFIX}${authUserId}`
           const alreadyMigrated = storage.get(migrationKey, false)
           if (!alreadyMigrated) {
@@ -373,7 +379,15 @@ export function DataProvider({ children }) {
           }
         }
       } catch (err) {
-        console.warn('Could not fetch projects from Supabase; using local store.', err)
+        // If local fallback is enabled (dev/prototype), tolerate Supabase being incomplete.
+        // Otherwise, keep projects empty so the UI doesn't show data that isn't in Supabase.
+        if (ALLOW_LOCAL_PROJECTS_FALLBACK) {
+          console.warn('Could not fetch projects from Supabase; using local store.', err)
+        } else {
+          console.error('Could not fetch projects from Supabase (local fallback disabled):', err)
+          projects = []
+          projectSubmissions = []
+        }
       }
 
       let notifications = notificationsStore.notifications ?? []
@@ -1276,6 +1290,18 @@ export function DataProvider({ children }) {
         return { success: false, error: err }
       }
 
+      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
+        let supabaseHost = ''
+        try {
+          supabaseHost = new URL(import.meta.env.VITE_SUPABASE_URL).host
+        } catch {
+          supabaseHost = ''
+        }
+
+        const msg = `Supabase projects tables are not available (or not reachable) for this app.${supabaseHost ? ` Connected Supabase: ${supabaseHost}.` : ''} Ensure you ran supabase-projects.sql in the same Supabase project and that RLS policies allow the student to insert/select projects.`
+        return { success: false, errors: { form: msg }, error: err }
+      }
+
       console.warn('Supabase projects tables not found; saving project locally. Run supabase-projects.sql in the same Supabase project your app is configured to use.', err)
 
       // Local fallback
@@ -1362,6 +1388,13 @@ export function DataProvider({ children }) {
         return { success: false, error: err }
       }
 
+      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
+        return {
+          success: false,
+          error: 'Project submissions table is not available in Supabase (or access is blocked).',
+        }
+      }
+
       console.warn('Supabase project_submissions table not found; saving submission locally.', err)
 
       // Local fallback
@@ -1410,6 +1443,10 @@ export function DataProvider({ children }) {
       if (!isMissingTableError(err)) {
         console.error('Error adding submission comment in Supabase:', err)
         return { success: false, error: err }
+      }
+
+      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
+        return { success: false, error: 'Cannot save comment: project_submissions table unavailable in Supabase.' }
       }
 
       console.warn('Supabase project_submissions table not found; saving comment locally.', err)
@@ -1466,6 +1503,10 @@ export function DataProvider({ children }) {
       if (!isMissingTableError(err)) {
         console.error('Error setting submission status in Supabase:', err)
         return { success: false, error: err }
+      }
+
+      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
+        return { success: false, error: 'Cannot update status: project_submissions table unavailable in Supabase.' }
       }
 
       console.warn('Supabase project_submissions table not found; saving status locally.', err)
@@ -1544,6 +1585,10 @@ export function DataProvider({ children }) {
       if (!isMissingTableError(err)) {
         console.error('Error setting project stage in Supabase:', err)
         return { success: false, error: err }
+      }
+
+      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
+        return { success: false, error: 'Cannot update stage: projects table unavailable in Supabase.' }
       }
 
       console.warn('Supabase projects table not found; saving stage locally.', err)
