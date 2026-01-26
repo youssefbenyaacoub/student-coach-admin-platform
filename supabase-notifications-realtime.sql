@@ -3,6 +3,40 @@
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Role helpers (RLS-safe). Idempotent.
+CREATE OR REPLACE FUNCTION public.has_role(role_names TEXT[])
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.users u
+    WHERE u.id = auth.uid()
+      AND u.role = ANY(role_names)
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.user_has_role(target_user_id UUID, role_names TEXT[])
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.users u
+    WHERE u.id = target_user_id
+      AND u.role = ANY(role_names)
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.has_role(TEXT[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_role(UUID, TEXT[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.has_role(TEXT[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.user_has_role(UUID, TEXT[]) TO authenticated;
+
 -- 1) Table
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -33,7 +67,7 @@ DROP POLICY IF EXISTS "Admins/coaches can create notifications" ON public.notifi
 CREATE POLICY "Admins/coaches can create notifications" ON public.notifications
   FOR INSERT
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('coach', 'admin'))
+    public.has_role(ARRAY['coach', 'admin'])
   );
 
 DROP POLICY IF EXISTS "Users can create self notifications" ON public.notifications;
@@ -47,8 +81,8 @@ DROP POLICY IF EXISTS "Students can notify staff" ON public.notifications;
 CREATE POLICY "Students can notify staff" ON public.notifications
   FOR INSERT
   WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'student')
-    AND EXISTS (SELECT 1 FROM public.users t WHERE t.id = user_id AND t.role IN ('coach', 'admin'))
+    public.has_role(ARRAY['student'])
+    AND public.user_has_role(user_id, ARRAY['coach', 'admin'])
   );
 
 DROP POLICY IF EXISTS "Users can mark own notifications read" ON public.notifications;

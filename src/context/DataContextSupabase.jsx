@@ -1301,37 +1301,6 @@ export function DataProvider({ children }) {
       // Keep lists consistent for admin/coach views.
       refreshProjects().catch(() => {})
 
-      // Student action: notify staff (coach/admin)
-      try {
-        const staffIds = listStaffUserIds().filter((id) => String(id) !== String(studentId))
-        if (staffIds.length > 0) {
-          const title = 'New project created'
-          const msg = `${mappedProject.title} (${mappedProject.stage}) created by a student.`
-          await Promise.all(
-            staffIds.map((uid) =>
-              createNotification({
-                userId: uid,
-                type: 'info',
-                title,
-                message: msg,
-                linkUrl: '/coach/projects',
-                meta: {
-                  projectId: mappedProject.id,
-                  studentId: mappedProject.studentId,
-                  stage: mappedProject.stage,
-                },
-                allowLocalFallback: false,
-              }).catch((e) => {
-                console.warn('Notification insert failed (student project create -> staff):', e)
-                return null
-              }),
-            ),
-          )
-        }
-      } catch (e) {
-        console.warn('Notification fan-out failed (student project create -> staff):', e)
-      }
-
       return { success: true, project: mappedProject, submission: mappedSubmission }
     } catch (err) {
       if (!isMissingTableError(err)) {
@@ -1362,7 +1331,7 @@ export function DataProvider({ children }) {
       })
       return { success: true, project, submission: ideaSubmission, localFallback: true }
     }
-  }, [createNotification, isMissingTableError, listStaffUserIds, mapProjectRow, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [isMissingTableError, mapProjectRow, mapProjectSubmissionRow, persistProjects, refreshProjects])
 
   const addProjectSubmission = useCallback(async ({ projectId, type, payload }) => {
     const project = getProjectById(projectId)
@@ -1430,55 +1399,6 @@ export function DataProvider({ children }) {
 
       refreshProjects().catch(() => {})
 
-      // Notify the other side (student <-> staff) when a new submission is added
-      try {
-        const actorId = authUserId
-        const actorRole = actorId ? (data.users ?? []).find((u) => u.id === actorId)?.role : null
-        const projectStudentId = project?.studentId
-
-        const isStudentActor =
-          (actorRole === 'student') || (actorId && projectStudentId && String(actorId) === String(projectStudentId))
-
-        if (isStudentActor) {
-          const staffIds = listStaffUserIds().filter((id) => String(id) !== String(actorId))
-          if (staffIds.length > 0) {
-            const title = 'New project submission'
-            const msg = `${project.title}: ${String(type).toUpperCase()} submitted.`
-            await Promise.all(
-              staffIds.map((uid) =>
-                createNotification({
-                  userId: uid,
-                  type: 'info',
-                  title,
-                  message: msg,
-                  linkUrl: '/coach/projects',
-                  meta: { projectId, submissionId: mappedSubmission.id, studentId: projectStudentId, type },
-                  allowLocalFallback: false,
-                }).catch((e) => {
-                  console.warn('Notification insert failed (student submission -> staff):', e)
-                  return null
-                }),
-              ),
-            )
-          }
-        } else if (projectStudentId) {
-          await createNotification({
-            userId: projectStudentId,
-            type: 'info',
-            title: 'New project update',
-            message: `${project.title}: a new ${String(type).toUpperCase()} submission was added.`,
-            linkUrl: '/student/projects',
-            meta: { projectId, submissionId: mappedSubmission.id, type, actorId },
-            allowLocalFallback: false,
-          }).catch((e) => {
-            console.warn('Notification insert failed (staff submission -> student):', e)
-            return null
-          })
-        }
-      } catch (e) {
-        console.warn('Notification fan-out failed (project submission):', e)
-      }
-
       return { success: true, submission: mappedSubmission }
     } catch (err) {
       if (!isMissingTableError(err)) {
@@ -1507,7 +1427,7 @@ export function DataProvider({ children }) {
 
       return { success: true, submission, localFallback: true }
     }
-  }, [authUserId, createNotification, data.users, getProjectById, isMissingTableError, listProjectSubmissions, listStaffUserIds, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [getProjectById, isMissingTableError, listProjectSubmissions, mapProjectSubmissionRow, persistProjects, refreshProjects])
 
   const addProjectSubmissionComment = useCallback(async ({ submissionId, authorId, text }) => {
     const content = String(text ?? '').trim()
@@ -1617,9 +1537,6 @@ export function DataProvider({ children }) {
     const now = new Date().toISOString()
 
     const prevSub = (data.projectSubmissions ?? []).find((s) => s.id === submissionId) ?? null
-    const prevStatus = prevSub?.status
-    const project = prevSub ? (data.projects ?? []).find((p) => p.id === prevSub.projectId) ?? null : null
-    const studentId = project?.studentId
 
     const isReviewed = nextStatus !== SubmissionStatus.pending
     const reviewedAt = isReviewed ? (prevSub?.reviewedAt ?? now) : null
@@ -1675,36 +1592,8 @@ export function DataProvider({ children }) {
       })
     }
 
-    if (prevSub && studentId && String(prevStatus ?? '') !== String(nextStatus ?? '')) {
-      const label =
-        nextStatus === SubmissionStatus.approved
-          ? 'approved'
-          : nextStatus === SubmissionStatus.reviewed
-            ? 'reviewed'
-            : 'updated'
-
-      try {
-        await createNotification({
-          userId: studentId,
-          type: nextStatus === SubmissionStatus.approved ? 'success' : 'info',
-          title: `Submission ${label}`,
-          message: `Your ${String(prevSub.type).toUpperCase()} submission was ${label}.`,
-          linkUrl: '/student/projects',
-          meta: {
-            submissionId: prevSub.id,
-            projectId: prevSub.projectId,
-            status: nextStatus,
-            reviewerId: reviewerId ?? prevSub.reviewerId,
-          },
-          allowLocalFallback: false,
-        })
-      } catch (e) {
-        console.warn('Notification insert failed (submission status):', e)
-      }
-    }
-
     return { success: true }
-  }, [createNotification, data.projectSubmissions, data.projects, isMissingTableError, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [data.projectSubmissions, isMissingTableError, mapProjectSubmissionRow, persistProjects, refreshProjects])
 
   const setProjectStage = useCallback(async ({ projectId, stage }) => {
     const nextStage = normalizeStage(stage)
