@@ -17,18 +17,18 @@ export default function Modal({ open, isOpen, title, children, onClose, footer }
   if (!visible) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4">
       <div 
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" 
         onClick={onClose} 
       />
       <div
-        className="bg-white rounded-2xl shadow-2xl relative z-10 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="bg-white rounded-2xl shadow-2xl relative z-10 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col"
         role="dialog"
         aria-modal="true"
         aria-label={title ?? 'Dialog'}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-100 flex-none">
           <div>
             {title ? <h3 className="text-lg font-heading font-semibold text-slate-800">{title}</h3> : null}
           </div>
@@ -42,12 +42,12 @@ export default function Modal({ open, isOpen, title, children, onClose, footer }
           </button>
         </div>
         
-        <div className="p-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
            {children}
         </div>
         
         {footer ? (
-           <div className="bg-slate-50 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100">
+           <div className="bg-slate-50 px-4 sm:px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100 flex-none">
               {footer}
            </div>
         ) : null}
