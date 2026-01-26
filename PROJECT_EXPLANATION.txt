@@ -1,0 +1,245 @@
+PROJECT OVERVIEW (PLAIN ENGLISH)
+
+1) What this project is
+This project is a web platform for an incubation / training program that has three roles: Admin, Coach, and Student.
+Its goal is to manage an incubation journey end-to-end:
+- Admins set up the platform structure (users, programs, templates).
+- Students apply, join, and follow a roadmap of learning + tasks.
+- Coaches monitor students, review submissions, give feedback, adapt the plan, and run coaching sessions.
+
+The platform combines “operations” features (users, cohorts, sessions, deliverables, messaging) with a curriculum-style “roadmap” feature (program templates that become personalized instances).
+
+
+2) The two meanings of “Program” in this repo
+This repo currently supports two related but different concepts:
+
+A) Cohort Programs (classic program management)
+These are the cohort-style programs that look like a scheduled group: duration, start/end dates, capacity, coaches, enrolled students. This is useful for running a cohort (Summer 2026, etc.).
+
+B) Roadmap Templates → Instances (dynamic program management)
+This is the “real curriculum” system:
+- A Template is a reusable structure: stages + content + task templates.
+- A Student starts a template and it creates an Instance.
+- An Instance produces real tasks for that student/project that coaches can customize.
+
+The reason both exist: a cohort program is good for “who is in this cohort and when,” while a template/instance is good for “what the student must learn/do and how it evolves.”
+
+
+3) Roles and what each role can do
+
+3.1) Student
+Main student experience:
+- Sees available roadmap templates (the curriculum options).
+- Starts a template to create a program instance (their roadmap).
+- Opens the roadmap to see:
+  - Stages (IDEA → PROTOTYPE → MVP, etc.)
+  - Learning content in each stage (videos, courses, articles, links)
+  - Tasks to complete (deliverables) with deadlines
+- Submits work for tasks (as structured submission data).
+- Tracks approval status (submitted, approved, rejected).
+
+What the student cannot do (by design):
+- Modify templates.
+- Modify instance structure or tasks directly.
+(Students submit work; staff manages the plan.)
+
+
+3.2) Coach
+Main coach experience:
+- Sees student progress through instances.
+- Reviews task submissions and approves/rejects with feedback.
+- Customizes the student plan:
+  - Reorder instance tasks
+  - Inject new tasks (extra homework, remediation, custom tasks)
+  - Extend deadlines
+  - Advance the student to a new stage
+
+This matches real incubation behavior: a template is a starting point, but coaches adjust it based on the student’s project progress.
+
+
+3.3) Admin
+Main admin experience:
+- Manages users and platform data.
+- Manages cohort programs (dates, capacity, enrollments, coach assignment).
+- Manages roadmap templates (dynamic program management):
+  - Create templates
+  - Add stages
+  - Add real learning content (video/course/article/link)
+  - Add task templates
+  - Delete items when needed
+  - Archive templates (inactive)
+
+The admin template editor was designed to be understandable:
+- Step 1: define template info (name/description/active)
+- Step 2: build stages
+- Then: select a stage and add content + tasks
+
+
+4) Frontend (browser app) architecture
+
+4.1) Tech stack
+- React application (single-page app)
+- Vite tooling (fast dev server + build)
+- Tailwind-style utility classes for styling
+
+4.2) How pages are organized
+The UI is separated by role and feature:
+- Admin pages: user management, cohort program management, template management
+- Coach pages: dashboards, students, deliverables, messaging, program instances
+- Student pages: dashboards, programs, deliverables, messaging
+
+4.3) Shared UI components
+A set of shared components are used across pages to keep UX consistent:
+- Modal: common dialog container (now responsive and scrollable)
+- Card: consistent content containers
+- DataTable: tabular listings
+- ConfirmDialog: safer deletes
+- StatusBadge, EmptyState, Toasts, etc.
+
+The UX direction is: simple sections, clear actions, and guided workflows rather than “developer-style prompts.”
+
+
+5) State management and data flow
+
+The app uses Context + hooks as the “service layer.” Pages call high-level actions and render state.
+
+5.1) Authentication context
+Tracks current user identity and role, and supports protected routes.
+
+5.2) Core data context
+Provides access to core platform entities (users, cohort programs, projects, deliverables, submissions, etc.).
+
+5.3) Program Management context (templates/instances)
+This is the dedicated layer for the roadmap system:
+- Fetch list of templates
+- Fetch template details (stages + content + task templates)
+- Create/update/delete templates
+- Add stages
+- Add content items
+- Add task templates
+- Delete stages/content/tasks
+
+For instances:
+- Fetch “my instances”
+- Fetch instance details (tasks)
+- Start a template to create an instance
+- Submit instance task
+- Approve/reject instance task
+- Reorder tasks
+- Advance stage
+- Inject tasks
+- Extend deadlines
+
+This context hides Supabase details from UI pages so the UI stays readable.
+
+
+6) Backend (Supabase) design
+
+6.1) Why Supabase
+Supabase gives:
+- Database (Postgres)
+- Authentication
+- Authorization via RLS (Row Level Security)
+- RPC functions (database functions) for secure workflows
+- Optional realtime updates
+
+6.2) Security model (high level)
+The database enforces access rules, not the frontend:
+- Templates: readable by authenticated users, writable only by admin.
+- Instances: readable by student owner and staff; writable only by staff.
+- Instance tasks: readable by owner and staff; writable only by staff.
+- Student submission is done through a controlled RPC, not a direct table update.
+
+This design prevents “client tampering.” Even if someone modifies the frontend, the database still blocks unauthorized writes.
+
+6.3) Why RPC functions are used
+Some actions require multiple steps and must be consistent:
+- Starting a template must create an instance and generate tasks in one secure flow.
+- Submitting a task should only work for the owner.
+- Approving a task must verify staff role.
+- Reordering tasks must update multiple rows in a controlled way.
+
+RPC functions are used so these operations are:
+- secure
+- consistent
+- transactional
+
+
+7) Roadmap data model (templates → instances)
+
+7.1) Template tables
+- program_templates: template header (name, description, active)
+- program_template_stages: ordered stages under a template
+- program_template_contents: learning content items under a stage (video/course/article/link)
+- program_task_templates: reusable task definitions per stage
+
+7.2) Instance tables
+- program_instances: the student’s started roadmap (which template, which student, optional project)
+- program_instance_tasks: tasks generated from templates and later customized
+
+7.3) Content items (“videos/courses/etc.”)
+A content item includes:
+- type (video/course/article/link)
+- title
+- url
+- optional provider (YouTube, Coursera, etc.)
+- optional duration
+
+The point: templates are not just a visual timeline; they contain real resources.
+
+
+8) Messaging / notifications / realtime
+The repo contains Supabase SQL scripts related to realtime and policies, including scripts for notifications and presence.
+Depending on how you configure Supabase, you can enable realtime updates on key tables so:
+- coaches see task submissions quickly
+- students see approval feedback quickly
+
+
+9) Styling and UX goals
+The UX is built for “normal users,” not developers:
+- Guided forms instead of browser prompts
+- Clear steps and labels
+- Confirmation dialogs for dangerous actions
+- Responsive modals (usable on mobile)
+- Simple, consistent visual system (cards, badges, sections)
+
+
+10) Testing and quality
+The repo includes a basic test setup and ESLint.
+The intent is:
+- avoid regressions when changing UI
+- keep style and code quality consistent
+
+
+11) Deployment mindset
+This is a typical modern React + Supabase deployment:
+- Frontend can be deployed to a static hosting provider.
+- Supabase provides the backend services.
+
+You must ensure:
+- Supabase schema + policies + functions are applied
+- environment variables for Supabase URL and key are set
+
+
+12) What you should do to make the roadmap system work
+- Run the SQL migration that creates the template/instance system in Supabase.
+- Ensure your roles in the users table match the expected values (admin/coach/student).
+- Confirm Row Level Security is enabled and policies are applied.
+
+
+13) Typical real-world usage scenario
+- Admin creates a template “Startup Incubation” with stages: IDEA, PROTOTYPE, MVP.
+- Admin adds real content links under each stage (videos/courses/articles).
+- Admin adds task templates (e.g., problem statement, market research, MVP demo).
+- Student starts the template, producing an instance with tasks.
+- Student submits deliverables.
+- Coach reviews, approves/rejects, adds custom tasks, adjusts deadlines, advances stages.
+
+
+14) Summary
+This platform is a full workflow system:
+- cohort operations (programs, enrollments, sessions)
+- personalized curriculum roadmaps (templates → instances)
+- real content resources + tasks
+- role-based security enforced by the database
+- a UI designed to be understandable and usable for non-technical users
