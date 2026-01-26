@@ -685,6 +685,13 @@ export function DataProvider({ children }) {
     return filtered
   }, [data.notifications])
 
+  const listStaffUserIds = useCallback(() => {
+    return (data.users ?? [])
+      .filter((u) => u?.role === 'admin' || u?.role === 'coach')
+      .map((u) => u.id)
+      .filter(Boolean)
+  }, [data.users])
+
   const refreshNotifications = useCallback(async () => {
     try {
       const { data: ntfData, error } = await supabase
@@ -759,7 +766,18 @@ export function DataProvider({ children }) {
           })
         },
       )
-      .subscribe()
+
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Ensure we have a clean baseline after subscription.
+          refreshNotifications().catch(() => {})
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.warn('[Notifications] Realtime channel error. Ensure notifications is in supabase_realtime publication and policies allow SELECT.', {
+            userId: authUserId,
+          })
+        }
+      })
 
     notificationsChannelRef.current = channel
 
@@ -1283,6 +1301,37 @@ export function DataProvider({ children }) {
       // Keep lists consistent for admin/coach views.
       refreshProjects().catch(() => {})
 
+      // Student action: notify staff (coach/admin)
+      try {
+        const staffIds = listStaffUserIds().filter((id) => String(id) !== String(studentId))
+        if (staffIds.length > 0) {
+          const title = 'New project created'
+          const msg = `${mappedProject.title} (${mappedProject.stage}) created by a student.`
+          await Promise.all(
+            staffIds.map((uid) =>
+              createNotification({
+                userId: uid,
+                type: 'info',
+                title,
+                message: msg,
+                linkUrl: '/coach/projects',
+                meta: {
+                  projectId: mappedProject.id,
+                  studentId: mappedProject.studentId,
+                  stage: mappedProject.stage,
+                },
+                allowLocalFallback: false,
+              }).catch((e) => {
+                console.warn('Notification insert failed (student project create -> staff):', e)
+                return null
+              }),
+            ),
+          )
+        }
+      } catch (e) {
+        console.warn('Notification fan-out failed (student project create -> staff):', e)
+      }
+
       return { success: true, project: mappedProject, submission: mappedSubmission }
     } catch (err) {
       if (!isMissingTableError(err)) {
@@ -1313,7 +1362,7 @@ export function DataProvider({ children }) {
       })
       return { success: true, project, submission: ideaSubmission, localFallback: true }
     }
-  }, [isMissingTableError, mapProjectRow, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [createNotification, isMissingTableError, listStaffUserIds, mapProjectRow, mapProjectSubmissionRow, persistProjects, refreshProjects])
 
   const addProjectSubmission = useCallback(async ({ projectId, type, payload }) => {
     const project = getProjectById(projectId)
@@ -1381,6 +1430,55 @@ export function DataProvider({ children }) {
 
       refreshProjects().catch(() => {})
 
+      // Notify the other side (student <-> staff) when a new submission is added
+      try {
+        const actorId = authUserId
+        const actorRole = actorId ? (data.users ?? []).find((u) => u.id === actorId)?.role : null
+        const projectStudentId = project?.studentId
+
+        const isStudentActor =
+          (actorRole === 'student') || (actorId && projectStudentId && String(actorId) === String(projectStudentId))
+
+        if (isStudentActor) {
+          const staffIds = listStaffUserIds().filter((id) => String(id) !== String(actorId))
+          if (staffIds.length > 0) {
+            const title = 'New project submission'
+            const msg = `${project.title}: ${String(type).toUpperCase()} submitted.`
+            await Promise.all(
+              staffIds.map((uid) =>
+                createNotification({
+                  userId: uid,
+                  type: 'info',
+                  title,
+                  message: msg,
+                  linkUrl: '/coach/projects',
+                  meta: { projectId, submissionId: mappedSubmission.id, studentId: projectStudentId, type },
+                  allowLocalFallback: false,
+                }).catch((e) => {
+                  console.warn('Notification insert failed (student submission -> staff):', e)
+                  return null
+                }),
+              ),
+            )
+          }
+        } else if (projectStudentId) {
+          await createNotification({
+            userId: projectStudentId,
+            type: 'info',
+            title: 'New project update',
+            message: `${project.title}: a new ${String(type).toUpperCase()} submission was added.`,
+            linkUrl: '/student/projects',
+            meta: { projectId, submissionId: mappedSubmission.id, type, actorId },
+            allowLocalFallback: false,
+          }).catch((e) => {
+            console.warn('Notification insert failed (staff submission -> student):', e)
+            return null
+          })
+        }
+      } catch (e) {
+        console.warn('Notification fan-out failed (project submission):', e)
+      }
+
       return { success: true, submission: mappedSubmission }
     } catch (err) {
       if (!isMissingTableError(err)) {
@@ -1409,7 +1507,7 @@ export function DataProvider({ children }) {
 
       return { success: true, submission, localFallback: true }
     }
-  }, [getProjectById, isMissingTableError, listProjectSubmissions, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [authUserId, createNotification, data.users, getProjectById, isMissingTableError, listProjectSubmissions, listStaffUserIds, mapProjectSubmissionRow, persistProjects, refreshProjects])
 
   const addProjectSubmissionComment = useCallback(async ({ submissionId, authorId, text }) => {
     const content = String(text ?? '').trim()
@@ -1438,6 +1536,55 @@ export function DataProvider({ children }) {
 
       refreshProjects().catch(() => {})
 
+      // Notify the other side about the new comment
+      try {
+        const projectId = localSub?.projectId
+        const project = projectId ? (data.projects ?? []).find((p) => p.id === projectId) : null
+        const projectStudentId = project?.studentId
+        const authorRole = authorId ? (data.users ?? []).find((u) => u.id === authorId)?.role : null
+        const isStaffAuthor = authorRole === 'admin' || authorRole === 'coach'
+
+        if (isStaffAuthor && projectStudentId) {
+          await createNotification({
+            userId: projectStudentId,
+            type: 'info',
+            title: 'New comment on your submission',
+            message: project?.title ? `A coach/admin commented on ${project.title}.` : 'A coach/admin commented on your submission.',
+            linkUrl: '/student/projects',
+            meta: { submissionId, projectId, authorId },
+            allowLocalFallback: false,
+          }).catch((e) => {
+            console.warn('Notification insert failed (staff comment -> student):', e)
+            return null
+          })
+        }
+
+        const isStudentAuthor = authorRole === 'student' || (authorId && projectStudentId && String(authorId) === String(projectStudentId))
+        if (isStudentAuthor) {
+          const staffIds = listStaffUserIds().filter((id) => String(id) !== String(authorId))
+          if (staffIds.length > 0) {
+            await Promise.all(
+              staffIds.map((uid) =>
+                createNotification({
+                  userId: uid,
+                  type: 'info',
+                  title: 'New student comment',
+                  message: project?.title ? `New comment on ${project.title}.` : 'A student commented on a submission.',
+                  linkUrl: '/coach/projects',
+                  meta: { submissionId, projectId, authorId, studentId: projectStudentId },
+                  allowLocalFallback: false,
+                }).catch((e) => {
+                  console.warn('Notification insert failed (student comment -> staff):', e)
+                  return null
+                }),
+              ),
+            )
+          }
+        }
+      } catch (e) {
+        console.warn('Notification fan-out failed (submission comment):', e)
+      }
+
       return { success: true, comment }
     } catch (err) {
       if (!isMissingTableError(err)) {
@@ -1463,7 +1610,7 @@ export function DataProvider({ children }) {
 
       return { success: true, comment, localFallback: true }
     }
-  }, [data.projectSubmissions, isMissingTableError, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [createNotification, data.projects, data.projectSubmissions, data.users, isMissingTableError, listStaffUserIds, mapProjectSubmissionRow, persistProjects, refreshProjects])
 
   const setProjectSubmissionStatus = useCallback(async ({ submissionId, status, reviewerId }) => {
     const nextStatus = Object.values(SubmissionStatus).includes(status) ? status : SubmissionStatus.pending
@@ -1580,6 +1727,30 @@ export function DataProvider({ children }) {
       })
 
       refreshProjects().catch(() => {})
+
+      // Staff action: notify student that stage changed
+      try {
+        const actorId = authUserId
+        const actorRole = actorId ? (data.users ?? []).find((u) => u.id === actorId)?.role : null
+        const isStaffActor = actorRole === 'admin' || actorRole === 'coach'
+        if (isStaffActor && mapped?.studentId) {
+          await createNotification({
+            userId: mapped.studentId,
+            type: 'info',
+            title: 'Project stage updated',
+            message: `${mapped.title} is now in stage: ${mapped.stage}.`,
+            linkUrl: '/student/projects',
+            meta: { projectId: mapped.id, stage: mapped.stage, actorId },
+            allowLocalFallback: false,
+          }).catch((e) => {
+            console.warn('Notification insert failed (stage update -> student):', e)
+            return null
+          })
+        }
+      } catch (e) {
+        console.warn('Notification fan-out failed (stage update):', e)
+      }
+
       return { success: true }
     } catch (err) {
       if (!isMissingTableError(err)) {
@@ -1603,7 +1774,7 @@ export function DataProvider({ children }) {
       })
       return { success: true, localFallback: true }
     }
-  }, [isMissingTableError, mapProjectRow, persistProjects, refreshProjects])
+  }, [authUserId, createNotification, data.users, isMissingTableError, mapProjectRow, persistProjects, refreshProjects])
 
   // ===================
   // MUTATION FUNCTIONS
@@ -1850,12 +2021,38 @@ export function DataProvider({ children }) {
         applications: [mapped, ...(prev.applications ?? [])],
       }))
 
+      // Student action: notify staff (coach/admin) about a new application
+      try {
+        const staffIds = listStaffUserIds().filter((id) => String(id) !== String(studentId))
+        const programName = (data.programs ?? []).find((p) => p.id === programId)?.name ?? 'a program'
+        if (staffIds.length > 0) {
+          await Promise.all(
+            staffIds.map((uid) =>
+              createNotification({
+                userId: uid,
+                type: 'info',
+                title: 'New program application',
+                message: `A student applied to ${programName}.`,
+                linkUrl: '/admin/applications',
+                meta: { applicationId: mapped.id, programId, studentId },
+                allowLocalFallback: false,
+              }).catch((e) => {
+                console.warn('Notification insert failed (student application -> staff):', e)
+                return null
+              }),
+            ),
+          )
+        }
+      } catch (e) {
+        console.warn('Notification fan-out failed (application create -> staff):', e)
+      }
+
       return mapped
     } catch (error) {
       console.error('Error creating application:', error)
       throw error
     }
-  }, [mapApplication])
+  }, [createNotification, data.programs, listStaffUserIds, mapApplication])
 
   const assignCoachToProgram = useCallback(async ({ programId, coachId }) => {
     try {

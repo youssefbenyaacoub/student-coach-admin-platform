@@ -300,6 +300,16 @@ CREATE POLICY "Users can create self notifications" ON notifications FOR INSERT 
   user_id = auth.uid()
 );
 
+-- Allow students to notify staff (coach/admin) when students take actions that require review.
+-- This enables student -> coach/admin realtime notifications while preventing student -> student spam.
+DROP POLICY IF EXISTS "Students can notify staff" ON notifications;
+CREATE POLICY "Students can notify staff" ON notifications
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'student')
+    AND EXISTS (SELECT 1 FROM public.users t WHERE t.id = user_id AND t.role IN ('coach', 'admin'))
+  );
+
 CREATE POLICY "Users can mark own notifications read" ON notifications FOR UPDATE USING (
   user_id = auth.uid()
 );
