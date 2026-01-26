@@ -11,6 +11,7 @@ export default function AdminProjects() {
   const {
     listProjects,
     listProjectSubmissions,
+    listTasks,
     getUserById,
     addProjectSubmissionComment,
     setProjectSubmissionStatus,
@@ -42,6 +43,11 @@ export default function AdminProjects() {
     if (!selectedProject?.id) return []
     return listProjectSubmissions({ projectId: selectedProject.id })
   }, [listProjectSubmissions, selectedProject])
+
+  const selectedTasks = useMemo(() => {
+    if (!selectedProject?.id) return []
+    return listTasks?.({ projectId: selectedProject.id }) ?? []
+  }, [listTasks, selectedProject])
 
   return (
     <div className="space-y-6">
@@ -138,6 +144,7 @@ export default function AdminProjects() {
 
             <ProjectTimeline
               submissions={selectedSubmissions}
+              tasks={selectedTasks}
               getUserById={getUserById}
               allowComment
               allowReview

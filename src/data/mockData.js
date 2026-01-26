@@ -935,6 +935,7 @@ export const seedData = {
 
   projects: [],
   projectSubmissions: [],
+  tasks: [],
 
   activityLog: [
     {

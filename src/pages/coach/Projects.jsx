@@ -13,6 +13,7 @@ export default function CoachProjects() {
     getUserById,
     listProjects,
     listProjectSubmissions,
+    listTasks,
     addProjectSubmissionComment,
     setProjectSubmissionStatus,
   } = useData()
@@ -28,6 +29,7 @@ export default function CoachProjects() {
   const submissions = selectedProject?.id
     ? listProjectSubmissions({ projectId: selectedProject.id })
     : []
+  const tasks = selectedProject?.id ? listTasks({ projectId: selectedProject.id }) ?? [] : []
 
   const onComment = async ({ submissionId, text }) => {
     await addProjectSubmissionComment({ submissionId, authorId: currentUser.id, text })
@@ -99,6 +101,7 @@ export default function CoachProjects() {
                 currentUserId={currentUser?.id}
                 onComment={onComment}
                 onSetStatus={onSetStatus}
+                tasks={tasks}
               />
 
               <div className="mt-4 text-xs text-slate-500">

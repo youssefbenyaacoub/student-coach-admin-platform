@@ -18,11 +18,13 @@ import CoachSessions from './pages/coach/Sessions'
 import CoachDeliverables from './pages/coach/Deliverables'
 import CoachStudents from './pages/coach/Students'
 import CoachMessages from './pages/coach/Messages'
+import CoachTasks from './pages/coach/Tasks'
 import StudentDashboard from './pages/student/Dashboard'
 import StudentProjects from './pages/student/Projects'
 import StudentPrograms from './pages/student/Programs'
 import StudentApplications from './pages/student/Applications'
 import StudentDeliverables from './pages/student/Deliverables'
+import StudentTasks from './pages/student/Tasks'
 import StudentSessions from './pages/student/Sessions'
 import Messages from './components/common/Messages'
 import Profile from './components/common/Profile'
@@ -87,6 +89,7 @@ export default function App() {
       >
         <Route index element={<CoachDashboard />} />
         <Route path="projects" element={<CoachProjects />} />
+        <Route path="tasks" element={<CoachTasks />} />
         <Route path="students" element={<CoachStudents />} />
         <Route path="programs" element={<CoachPrograms />} />
         <Route path="sessions" element={<CoachSessions />} />
@@ -105,6 +108,7 @@ export default function App() {
       >
         <Route index element={<StudentDashboard />} />
         <Route path="projects" element={<StudentProjects />} />
+        <Route path="tasks" element={<StudentTasks />} />
         <Route path="programs" element={<StudentPrograms />} />
         <Route path="applications" element={<StudentApplications />} />
         <Route path="deliverables" element={<StudentDeliverables />} />

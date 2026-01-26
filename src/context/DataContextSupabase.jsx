@@ -10,10 +10,12 @@ import {
   normalizeStage,
   validateIdeaPayload,
 } from '../models/projects'
+import { TaskStatus, TaskType, normalizeTaskStatus, normalizeTaskType } from '../models/tasks'
 
 const PROJECTS_STORAGE_KEY = 'sea_projects_v1'
 const PROJECTS_MIGRATION_KEY_PREFIX = 'sea_projects_migrated_v1:'
 const NOTIFICATIONS_STORAGE_KEY = 'sea_notifications_v1'
+const TASKS_STORAGE_KEY = 'sea_tasks_v1'
 
 // Local projects fallback is useful for prototyping before DB tables/policies exist,
 // but it can be confusing in production because it creates "phantom" data that
@@ -45,6 +47,16 @@ const ensureNotificationsStore = () => {
   return seeded
 }
 
+const ensureTasksStore = () => {
+  const existing = storage.get(TASKS_STORAGE_KEY, null)
+  if (existing && Array.isArray(existing.tasks)) {
+    return existing
+  }
+  const seeded = { tasks: [] }
+  storage.set(TASKS_STORAGE_KEY, seeded)
+  return seeded
+}
+
 export function DataProvider({ children }) {
   const [hydrated, setHydrated] = useState(false)
   const [authUserId, setAuthUserId] = useState(null)
@@ -65,6 +77,7 @@ export function DataProvider({ children }) {
     projects: [],
     projectSubmissions: [],
     notifications: [],
+    tasks: [],
   })
 
   const persistProjects = useCallback((projects, projectSubmissions) => {
@@ -73,6 +86,10 @@ export function DataProvider({ children }) {
 
   const persistNotifications = useCallback((notifications) => {
     storage.set(NOTIFICATIONS_STORAGE_KEY, { notifications })
+  }, [])
+
+  const persistTasks = useCallback((tasks) => {
+    storage.set(TASKS_STORAGE_KEY, { tasks })
   }, [])
 
   const mapProgram = useCallback((p) => {
@@ -255,6 +272,7 @@ export function DataProvider({ children }) {
     try {
       const projectStore = ensureProjectsStore()
       const notificationsStore = ensureNotificationsStore()
+      const tasksStore = ensureTasksStore()
 
       // Fetch all data in parallel
       const [
@@ -416,6 +434,7 @@ export function DataProvider({ children }) {
         projects,
         projectSubmissions,
         notifications,
+        tasks: tasksStore?.tasks ?? [],
       })
 
       setHydrated(true)
@@ -1734,16 +1753,21 @@ export function DataProvider({ children }) {
         status: programData.status,
       }
 
+      // For new programs, do NOT send id=null/empty; let Postgres default generate UUID.
+      if (payload.id === null || payload.id === '' || payload.id === undefined) {
+        delete payload.id
+      }
+
       // Remove undefined keys to avoid overwriting with null
       Object.keys(payload).forEach((k) => {
         if (payload[k] === undefined) delete payload[k]
       })
 
-      const { data: updatedProgram, error } = await supabase
-        .from('programs')
-        .upsert(payload)
-        .select()
-        .single()
+      const isCreate = !programData?.id
+
+      const { data: updatedProgram, error } = isCreate
+        ? await supabase.from('programs').insert(payload).select().single()
+        : await supabase.from('programs').upsert(payload).select().single()
 
       if (error) throw error
 
@@ -2042,6 +2066,156 @@ export function DataProvider({ children }) {
     return { online, lastSeenAt: row.lastSeenAt ?? row.updatedAt ?? null }
   }, [presence])
 
+  // ===================
+  // TASKS (Local-only)
+  // ===================
+
+  const getTaskById = useCallback((taskId) => {
+    return (data.tasks ?? []).find((t) => t.id === taskId) ?? null
+  }, [data.tasks])
+
+  const listTasks = useCallback(({ projectId, submissionId, status, studentId } = {}) => {
+    let tasks = data.tasks ?? []
+
+    if (projectId) tasks = tasks.filter((t) => t.projectId === projectId)
+    if (submissionId) tasks = tasks.filter((t) => t.submissionId === submissionId)
+    if (status) tasks = tasks.filter((t) => String(t.status) === String(status))
+
+    if (studentId) {
+      const projectIds = new Set(
+        (data.projects ?? []).filter((p) => String(p.studentId) === String(studentId)).map((p) => p.id),
+      )
+      tasks = tasks.filter((t) => projectIds.has(t.projectId))
+    }
+
+    return [...tasks].sort((a, b) => {
+      const ad = a.deadline ?? a.createdAt
+      const bd = b.deadline ?? b.createdAt
+      return new Date(ad).getTime() - new Date(bd).getTime()
+    })
+  }, [data.projects, data.tasks])
+
+  const listTasksGroupedByProject = useCallback(({ studentId, coachId } = {}) => {
+    const projects = studentId
+      ? (data.projects ?? []).filter((p) => String(p.studentId) === String(studentId))
+      : coachId
+        ? listProjects({ coachId })
+        : (data.projects ?? [])
+
+    return projects.map((p) => ({ project: p, tasks: listTasks({ projectId: p.id }) }))
+  }, [data.projects, listProjects, listTasks])
+
+  const createTask = useCallback(async ({ projectId, submissionId, title, description, taskType, deadline, checklistItems } = {}) => {
+    if (!authUserId) throw new Error('Not authenticated')
+    if (!projectId) throw new Error('Missing projectId')
+    if (!String(title ?? '').trim()) throw new Error('Missing title')
+
+    const actorRole = (data.users ?? []).find((u) => u.id === authUserId)?.role
+    if (actorRole !== 'coach') throw new Error('Only coaches can create tasks')
+
+    const project = (data.projects ?? []).find((p) => p.id === projectId) ?? null
+    if (!project) throw new Error('Project not found')
+
+    const now = new Date().toISOString()
+    const normalizedType = normalizeTaskType(taskType)
+
+    const normalizedChecklist =
+      normalizedType === TaskType.checklist
+        ? (Array.isArray(checklistItems) ? checklistItems : []).map((it) => ({
+            id: it?.id ?? makeId('chk'),
+            text: String(it?.text ?? '').trim(),
+          })).filter((it) => it.text)
+        : null
+
+    const task = {
+      id: makeId('tsk'),
+      projectId,
+      submissionId: submissionId ?? null,
+      title: String(title).trim(),
+      description: String(description ?? '').trim() || null,
+      taskType: normalizedType,
+      status: TaskStatus.pending,
+      deadline: deadline ?? null,
+      checklistItems: normalizedChecklist,
+      createdBy: authUserId,
+      createdAt: now,
+      updatedAt: now,
+      submittedAt: null,
+      studentSubmission: null,
+      coachFeedback: null,
+      reviewedAt: null,
+      reviewedBy: null,
+      studentId: project.studentId,
+    }
+
+    setData((prev) => {
+      const next = [task, ...(prev.tasks ?? [])]
+      persistTasks(next)
+      return { ...prev, tasks: next }
+    })
+
+    return task
+  }, [authUserId, data.projects, data.users, persistTasks])
+
+  const submitTask = useCallback(async ({ taskId, submission } = {}) => {
+    if (!authUserId) throw new Error('Not authenticated')
+    if (!taskId) throw new Error('Missing taskId')
+
+    const task = (data.tasks ?? []).find((t) => t.id === taskId) ?? null
+    if (!task) throw new Error('Task not found')
+
+    const project = (data.projects ?? []).find((p) => p.id === task.projectId) ?? null
+    if (!project) throw new Error('Project not found')
+    if (String(project.studentId) !== String(authUserId)) throw new Error('Only the project student can submit this task')
+
+    const now = new Date().toISOString()
+    setData((prev) => {
+      const next = (prev.tasks ?? []).map((t) => {
+        if (t.id !== taskId) return t
+        return {
+          ...t,
+          status: TaskStatus.submitted,
+          studentSubmission: submission ?? null,
+          submittedAt: now,
+          updatedAt: now,
+        }
+      })
+      persistTasks(next)
+      return { ...prev, tasks: next }
+    })
+
+    return { success: true }
+  }, [authUserId, data.projects, data.tasks, persistTasks])
+
+  const reviewTask = useCallback(async ({ taskId, status, feedback } = {}) => {
+    if (!authUserId) throw new Error('Not authenticated')
+    if (!taskId) throw new Error('Missing taskId')
+
+    const actorRole = (data.users ?? []).find((u) => u.id === authUserId)?.role
+    if (actorRole !== 'coach') throw new Error('Only coaches can review tasks')
+
+    const nextStatus = normalizeTaskStatus(status)
+    const now = new Date().toISOString()
+
+    setData((prev) => {
+      const next = (prev.tasks ?? []).map((t) => {
+        if (t.id !== taskId) return t
+        return {
+          ...t,
+          status: nextStatus,
+          coachFeedback: String(feedback ?? '').trim() || null,
+          reviewedAt: now,
+          reviewedBy: authUserId,
+          updatedAt: now,
+        }
+      })
+      persistTasks(next)
+      return { ...prev, tasks: next }
+    })
+
+    return { success: true }
+  }, [authUserId, data.users, persistTasks])
+
   const reset = useCallback(async () => {
     // This would require careful consideration in production
     // For now, just refresh data
@@ -2091,6 +2265,13 @@ export function DataProvider({ children }) {
       createApplication,
       assignCoachToProgram,
       assignStudentToProgram,
+      // Tasks
+      getTaskById,
+      listTasks,
+      listTasksGroupedByProject,
+      createTask,
+      submitTask,
+      reviewTask,
     }),
     [
       hydrated,
@@ -2131,6 +2312,12 @@ export function DataProvider({ children }) {
       createApplication,
       assignCoachToProgram,
       assignStudentToProgram,
+      getTaskById,
+      listTasks,
+      listTasksGroupedByProject,
+      createTask,
+      submitTask,
+      reviewTask,
     ]
   )
 

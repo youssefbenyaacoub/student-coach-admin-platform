@@ -18,6 +18,7 @@ export default function StudentProjects() {
     getUserById,
     listProjects,
     listProjectSubmissions,
+    listTasks,
     createProjectWithIdea,
     addProjectSubmission,
   } = useData()
@@ -36,6 +37,8 @@ export default function StudentProjects() {
   const submissions = selectedProject?.id
     ? listProjectSubmissions({ projectId: selectedProject.id })
     : []
+
+  const tasks = selectedProject?.id ? listTasks?.({ projectId: selectedProject.id }) ?? [] : []
 
   const ideaSubmitted = canAddNonIdeaSubmissions(submissions)
 
@@ -151,6 +154,7 @@ export default function StudentProjects() {
 
               <ProjectTimeline
                 submissions={submissions}
+                tasks={tasks}
                 getUserById={getUserById}
                 allowComment={false}
                 allowReview={false}

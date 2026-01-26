@@ -18,6 +18,7 @@ const map = {
   cancelled: 'danger',
   completed: 'success',
   submitted: 'warning',
+  revision: 'warning',
   graded: 'success',
   admin: 'neutral',
   coach: 'neutral',

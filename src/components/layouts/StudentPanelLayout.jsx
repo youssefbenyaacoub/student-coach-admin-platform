@@ -31,7 +31,7 @@ export default function StudentPanelLayout() {
   const navItems = [
     { label: 'Home', to: '/student', icon: Home, end: true },
     { label: 'Projects', to: '/student/projects', icon: FolderKanban },
-    { label: 'My Tasks', to: '/student/deliverables', icon: Target },
+    { label: 'My Tasks', to: '/student/tasks', icon: Target },
     { label: 'My Progress', to: '/student/programs', icon: ClipboardList },
     { label: 'Messages', to: '/student/messages', icon: MessageCircle },
     { label: 'Profile', to: '/student/profile', icon: User },
