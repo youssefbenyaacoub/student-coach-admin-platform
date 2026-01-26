@@ -7,6 +7,7 @@ import Modal from '../../components/common/Modal'
 import StatusBadge from '../../components/common/StatusBadge'
 import { useToast } from '../../hooks/useToast'
 import { useData } from '../../hooks/useData'
+import { useProgramManagement } from '../../hooks/useProgramManagement'
 import { formatDate } from '../../utils/time'
 import { validate, rules } from '../../utils/validators'
 
@@ -37,6 +38,16 @@ const fromDateInput = (value) => {
 export default function AdminPrograms() {
   const { data, upsertProgram, deleteProgram, reset } = useData()
   const { push } = useToast()
+  const {
+    templates,
+    templateDetailsById,
+    fetchTemplateDetails,
+    upsertTemplate,
+    deleteTemplate: deleteTemplateById,
+    addStage,
+    addContentItem,
+    addTaskTemplate,
+  } = useProgramManagement()
 
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -46,9 +57,123 @@ export default function AdminPrograms() {
 
   const [confirm, setConfirm] = useState({ open: false, programId: null })
 
+  const [templateEditorOpen, setTemplateEditorOpen] = useState(false)
+  const [activeTemplateId, setActiveTemplateId] = useState(null)
+
   const programs = useMemo(() => data?.programs ?? [], [data?.programs])
   const coaches = useMemo(() => (data?.users ?? []).filter((u) => u.role === 'coach'), [data?.users])
   const students = useMemo(() => (data?.users ?? []).filter((u) => u.role === 'student'), [data?.users])
+
+  const activeTemplate = useMemo(
+    () => templates.find((t) => t.id === activeTemplateId) ?? null,
+    [activeTemplateId, templates],
+  )
+  const activeTemplateDetails = useMemo(
+    () => (activeTemplateId ? templateDetailsById[activeTemplateId] ?? null : null),
+    [activeTemplateId, templateDetailsById],
+  )
+
+  const createTemplateQuick = async () => {
+    const name = window.prompt('Template name (e.g. Startup Incubation: IDEA → MVP):', '')
+    if (!name) return
+    const description = window.prompt('Short description:', '')
+    try {
+      const created = await upsertTemplate({ name, description, isActive: true })
+      push({ type: 'success', title: 'Template created', message: 'Now add stages, videos/courses, and tasks.' })
+      setActiveTemplateId(created.id)
+      setTemplateEditorOpen(true)
+      await fetchTemplateDetails(created.id)
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to create template' })
+    }
+  }
+
+  const openTemplateEditor = async (templateId) => {
+    setActiveTemplateId(templateId)
+    setTemplateEditorOpen(true)
+    try {
+      await fetchTemplateDetails(templateId)
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to load template details' })
+    }
+  }
+
+  const deleteTemplate = async (templateId) => {
+    if (!window.confirm('Delete this template? This will delete its stages/content/task templates.')) return
+    try {
+      await deleteTemplateById(templateId)
+      push({ type: 'success', title: 'Deleted', message: 'Template removed.' })
+      if (activeTemplateId === templateId) {
+        setTemplateEditorOpen(false)
+        setActiveTemplateId(null)
+      }
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to delete template' })
+    }
+  }
+
+  const addStageQuick = async () => {
+    if (!activeTemplateId) return
+    const name = window.prompt('Stage name (e.g. IDEA, PROTOTYPE, MVP):', '')
+    if (!name) return
+    const description = window.prompt('Stage description (optional):', '')
+    const orderIndex = (activeTemplateDetails?.stages?.length ?? 0)
+    try {
+      await addStage({ templateId: activeTemplateId, name, description, orderIndex })
+      push({ type: 'success', title: 'Stage added', message: 'Now add videos/courses and tasks.' })
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to add stage' })
+    }
+  }
+
+  const addContentQuick = async (stageId) => {
+    const contentType = window.prompt("Content type: video | course | article | link", 'video')
+    if (!contentType) return
+    const title = window.prompt('Content title:', '')
+    if (!title) return
+    const url = window.prompt('URL (YouTube / course link / doc link):', '')
+    if (!url) return
+    const provider = window.prompt('Provider (optional, e.g. YouTube, Coursera):', '')
+    const duration = window.prompt('Duration minutes (optional):', '')
+    const durationMinutes = duration ? Number(duration) : null
+    const orderIndex = (activeTemplateDetails?.contents?.filter((c) => c.stageId === stageId)?.length ?? 0)
+    try {
+      await addContentItem({
+        stageId,
+        contentType,
+        title,
+        url,
+        provider,
+        durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : null,
+        orderIndex,
+      })
+      push({ type: 'success', title: 'Added', message: 'Content item added.' })
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to add content' })
+    }
+  }
+
+  const addTaskTemplateQuick = async (stageId) => {
+    const title = window.prompt('Task title:', '')
+    if (!title) return
+    const description = window.prompt('Task description (optional):', '')
+    const dueOffset = window.prompt('Due offset days from start (optional):', '')
+    const dueOffsetDays = dueOffset ? Number(dueOffset) : null
+    const orderIndex = (activeTemplateDetails?.taskTemplates?.filter((t) => t.stageId === stageId)?.length ?? 0)
+    try {
+      await addTaskTemplate({
+        stageId,
+        title,
+        description,
+        dueOffsetDays: Number.isFinite(dueOffsetDays) ? dueOffsetDays : null,
+        orderIndex,
+        requiresApproval: true,
+      })
+      push({ type: 'success', title: 'Added', message: 'Task template added.' })
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to add task template' })
+    }
+  }
 
   const filteredPrograms = useMemo(() => {
      if (!searchTerm) return programs
@@ -216,6 +341,62 @@ export default function AdminPrograms() {
                  {programs.filter(p => getComputedStatus(p) === 'ongoing').length}
              </div>
          </div>
+      </div>
+
+      {/* Program Templates (Roadmaps) */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 dark:bg-slate-800 dark:border-slate-700">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-heading font-bold text-slate-900 dark:text-white">Program Templates</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Templates define stages + courses/videos + task templates. Students start a template to generate a real, editable Program Instance.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={createTemplateQuick}
+            className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900"
+          >
+            New Template
+          </button>
+        </div>
+
+        {templates.length === 0 ? (
+          <div className="mt-6 text-sm text-slate-500 dark:text-slate-400">No templates yet.</div>
+        ) : (
+          <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {templates.map((tpl) => (
+              <div
+                key={tpl.id}
+                className="rounded-2xl border border-slate-200 p-4 hover:shadow-md transition-shadow dark:border-slate-700"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-900 dark:text-white truncate">{tpl.name}</div>
+                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{tpl.description}</div>
+                  </div>
+                  <StatusBadge value={tpl.isActive ? 'active' : 'archived'} />
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openTemplateEditor(tpl.id)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors dark:border-slate-700 dark:text-slate-200"
+                  >
+                    Edit Structure
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteTemplate(tpl.id)}
+                    className="px-4 py-2 rounded-xl text-red-600 font-bold text-xs hover:bg-red-50 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Search */}
@@ -488,6 +669,113 @@ export default function AdminPrograms() {
             </div>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={templateEditorOpen}
+        onClose={() => setTemplateEditorOpen(false)}
+        title={activeTemplate ? `Edit Template: ${activeTemplate.name}` : 'Edit Template'}
+        footer={
+          <div className="flex gap-3 w-full">
+            <button
+              type="button"
+              onClick={() => setTemplateEditorOpen(false)}
+              className="flex-1 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={addStageQuick}
+              className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900"
+              disabled={!activeTemplateId}
+            >
+              Add Stage
+            </button>
+          </div>
+        }
+      >
+        {!activeTemplateId ? (
+          <div className="text-sm text-slate-500">Pick a template to edit.</div>
+        ) : !activeTemplateDetails ? (
+          <div className="text-sm text-slate-500">Loading template…</div>
+        ) : (
+          <div className="space-y-6">
+            {(activeTemplateDetails.stages ?? []).length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/30 dark:text-slate-300">
+                No stages yet. Add a stage (IDEA/PROTOTYPE/MVP) to start building content and tasks.
+              </div>
+            ) : (
+              activeTemplateDetails.stages.map((stage) => {
+                const stageContents = (activeTemplateDetails.contents ?? []).filter((c) => c.stageId === stage.id)
+                const stageTasks = (activeTemplateDetails.taskTemplates ?? []).filter((t) => t.stageId === stage.id)
+                return (
+                  <div key={stage.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 dark:text-white">{stage.name}</div>
+                        {stage.description ? (
+                          <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{stage.description}</div>
+                        ) : null}
+                        <div className="mt-2 text-xs text-slate-400">
+                          {stageContents.length} content items • {stageTasks.length} task templates
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => addContentQuick(stage.id)}
+                          className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors dark:border-slate-700 dark:text-slate-200"
+                        >
+                          Add Video/Course
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => addTaskTemplateQuick(stage.id)}
+                          className="px-3 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900"
+                        >
+                          Add Task
+                        </button>
+                      </div>
+                    </div>
+
+                    {stageContents.length > 0 ? (
+                      <div className="mt-4 space-y-2">
+                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Content</div>
+                        {stageContents.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 dark:text-white truncate">{item.title}</div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                {item.contentType.toUpperCase()} • {item.url}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {stageTasks.length > 0 ? (
+                      <div className="mt-4 space-y-2">
+                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Tasks</div>
+                        {stageTasks.map((t) => (
+                          <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 dark:text-white truncate">{t.title}</div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400">
+                                {t.dueOffsetDays !== null ? `Due +${t.dueOffsetDays}d` : 'No default deadline'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog

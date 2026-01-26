@@ -1,16 +1,35 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BookOpen, Users, Target, TrendingUp, Calendar } from 'lucide-react'
 import Card from '../../components/common/Card'
 import StatusBadge from '../../components/common/StatusBadge'
 import ProgressBar from '../../components/common/ProgressBar'
+import Modal from '../../components/common/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
+import { useProgramManagement } from '../../hooks/useProgramManagement'
 import { formatDate } from '../../utils/time'
 
 export default function CoachPrograms() {
   const { currentUser } = useAuth()
   const { data } = useData()
+  const {
+    templates,
+    templateDetailsById,
+    instances,
+    instanceDetailsById,
+    fetchTemplateDetails,
+    fetchInstanceDetails,
+    subscribeToInstanceTasks,
+    approveInstanceTask,
+    reorderInstanceTasks,
+    advanceInstanceStage,
+    injectTask,
+    extendTaskDeadline,
+  } = useProgramManagement()
+
   const [selectedProgram, setSelectedProgram] = useState(null)
+  const [instanceOpen, setInstanceOpen] = useState(false)
+  const [selectedInstanceId, setSelectedInstanceId] = useState(null)
 
   const myPrograms = useMemo(() => {
     if (!currentUser?.id || !data) return []
@@ -99,6 +118,107 @@ export default function CoachPrograms() {
     }
   }, [selectedProgram, myPrograms, data])
 
+  const allInstances = useMemo(() => instances ?? [], [instances])
+
+  const selectedInstanceDetails = useMemo(() => {
+    if (!selectedInstanceId) return null
+    return instanceDetailsById[selectedInstanceId] ?? null
+  }, [instanceDetailsById, selectedInstanceId])
+
+  const selectedInstance = selectedInstanceDetails?.instance ?? null
+  const selectedTasks = selectedInstanceDetails?.tasks ?? []
+  const selectedTemplate = selectedInstance
+    ? templates.find((t) => t.id === selectedInstance.templateId) ?? null
+    : null
+  const selectedTemplateDetails = selectedInstance
+    ? templateDetailsById[selectedInstance.templateId] ?? null
+    : null
+
+  const selectedStudent = useMemo(() => {
+    if (!selectedInstance?.studentId) return null
+    return (data?.users ?? []).find((u) => u.id === selectedInstance.studentId) ?? null
+  }, [data?.users, selectedInstance])
+
+  useEffect(() => {
+    if (!instanceOpen || !selectedInstanceId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const details = await fetchInstanceDetails(selectedInstanceId)
+        if (cancelled) return
+        if (details?.instance?.templateId) {
+          await fetchTemplateDetails(details.instance.templateId)
+        }
+        await subscribeToInstanceTasks(selectedInstanceId)
+      } catch {
+        // UI is intentionally simple; errors will surface via missing data
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [fetchInstanceDetails, fetchTemplateDetails, instanceOpen, selectedInstanceId, subscribeToInstanceTasks])
+
+  const openInstance = (id) => {
+    setSelectedInstanceId(id)
+    setInstanceOpen(true)
+  }
+
+  const closeInstance = () => {
+    setInstanceOpen(false)
+    setSelectedInstanceId(null)
+  }
+
+  const moveTask = async (taskId, direction) => {
+    const idx = selectedTasks.findIndex((t) => t.id === taskId)
+    if (idx < 0) return
+    const next = [...selectedTasks]
+    const swapWith = direction === 'up' ? idx - 1 : idx + 1
+    if (swapWith < 0 || swapWith >= next.length) return
+    ;[next[idx], next[swapWith]] = [next[swapWith], next[idx]]
+    await reorderInstanceTasks({ instanceId: selectedInstanceId, orderedTaskIds: next.map((t) => t.id) })
+  }
+
+  const handleApprove = async (taskId, approved) => {
+    const feedback = window.prompt('Coach feedback (optional):', '')
+    await approveInstanceTask({ taskId, feedback: feedback ?? null, approved })
+  }
+
+  const handleAdvanceStage = async () => {
+    if (!selectedInstanceId || !selectedTemplateDetails?.stages?.length) return
+    const stageNames = selectedTemplateDetails.stages.map((s) => s.name).join(', ')
+    const picked = window.prompt(`Advance stage to: ${stageNames}`, selectedTemplateDetails.stages[0]?.name ?? '')
+    if (!picked) return
+    const stage = selectedTemplateDetails.stages.find((s) => s.name.toLowerCase() === picked.toLowerCase())
+    if (!stage) return
+    await advanceInstanceStage({ instanceId: selectedInstanceId, stageId: stage.id })
+  }
+
+  const handleInjectTask = async () => {
+    if (!selectedInstanceId) return
+    const title = window.prompt('New task title:', '')
+    if (!title) return
+    const description = window.prompt('Description (optional):', '')
+
+    let stageId = selectedInstance?.currentStageId ?? null
+    if (selectedTemplateDetails?.stages?.length) {
+      const stageNames = selectedTemplateDetails.stages.map((s) => s.name).join(', ')
+      const picked = window.prompt(`Assign to stage: ${stageNames}`, selectedTemplateDetails.stages[0]?.name ?? '')
+      const stage = selectedTemplateDetails.stages.find((s) => s.name.toLowerCase() === String(picked ?? '').toLowerCase())
+      if (stage) stageId = stage.id
+    }
+
+    if (!stageId) return
+    await injectTask({ instanceId: selectedInstanceId, stageId, title, description })
+  }
+
+  const handleExtendDeadline = async (taskId) => {
+    const date = window.prompt('New deadline date (YYYY-MM-DD):', '')
+    if (!date) return
+    const iso = new Date(`${date}T00:00:00.000Z`).toISOString()
+    await extendTaskDeadline({ taskId, deadline: iso })
+  }
+
   if (myPrograms.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
@@ -113,6 +233,39 @@ export default function CoachPrograms() {
 
   return (
     <div className="space-y-6">
+      {/* Program Instances (Roadmaps) */}
+      <Card
+        title="Program Instances"
+        subtitle="Editable roadmaps generated from templates (videos/courses + tasks)"
+      >
+        {allInstances.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No program instances yet.</div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {allInstances.slice(0, 6).map((inst) => {
+              const tpl = templates.find((t) => t.id === inst.templateId)
+              const student = (data?.users ?? []).find((u) => u.id === inst.studentId)
+              return (
+                <div key={inst.id} className="rounded-lg border border-border/50 bg-muted/20 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-foreground truncate">{tpl?.name ?? 'Program'}</div>
+                      <div className="mt-1 text-sm text-muted-foreground truncate">
+                        Student: {student?.name ?? inst.studentId}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">Started: {formatDate(inst.startedAt)}</div>
+                    </div>
+                    <button type="button" className="btn" onClick={() => openInstance(inst.id)}>
+                      Open
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">My Programs</h1>
         <p className="mt-1 text-muted-foreground">
@@ -283,6 +436,74 @@ export default function CoachPrograms() {
           )}
         </>
       )}
+
+      <Modal
+        isOpen={instanceOpen}
+        onClose={closeInstance}
+        title={selectedTemplate ? `Instance: ${selectedTemplate.name}` : 'Program Instance'}
+      >
+        {!selectedInstance ? (
+          <div className="text-sm text-muted-foreground">Loading instance…</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
+              <div className="font-semibold text-foreground">Student</div>
+              <div className="text-sm text-muted-foreground">{selectedStudent?.name ?? selectedInstance.studentId}</div>
+              <div className="mt-2 text-xs text-muted-foreground">Current stage: {selectedInstance.currentStageId ?? '—'}</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" className="btn-ghost" onClick={handleAdvanceStage}>
+                  Advance Stage
+                </button>
+                <button type="button" className="btn-ghost" onClick={handleInjectTask}>
+                  Inject Task
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {selectedTasks.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No tasks in this instance yet.</div>
+              ) : (
+                selectedTasks.map((task) => (
+                  <div key={task.id} className="rounded-lg border border-border/50 bg-muted/10 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground">{task.title}</div>
+                        {task.description ? (
+                          <div className="mt-1 text-sm text-muted-foreground">{task.description}</div>
+                        ) : null}
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          Status: {task.status}
+                          {task.deadline ? ` • Due: ${formatDate(task.deadline)}` : ''}
+                        </div>
+                      </div>
+                      <StatusBadge value={task.status} />
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" className="btn-ghost" onClick={() => moveTask(task.id, 'up')}>
+                        ↑
+                      </button>
+                      <button type="button" className="btn-ghost" onClick={() => moveTask(task.id, 'down')}>
+                        ↓
+                      </button>
+                      <button type="button" className="btn-ghost" onClick={() => handleExtendDeadline(task.id)}>
+                        Extend
+                      </button>
+                      <button type="button" className="btn" onClick={() => handleApprove(task.id, true)}>
+                        Approve
+                      </button>
+                      <button type="button" className="btn-ghost" onClick={() => handleApprove(task.id, false)}>
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -504,7 +504,28 @@ export function DataProvider({ children }) {
           })
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Ensure we have a clean baseline after subscription.
+          supabase
+            .from('tasks')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .then(({ data: tasksData, error: tasksError }) => {
+              if (!tasksError && Array.isArray(tasksData)) {
+                setData((prev) => ({ ...prev, tasks: tasksData.map(mapTaskRow) }))
+              }
+            })
+            .catch(() => {})
+        }
+
+        if (status === 'CHANNEL_ERROR') {
+          console.warn(
+            '[Tasks] Realtime channel error. Common causes: `tasks` table not created yet, not added to `supabase_realtime` publication, or RLS/policies block SELECT.',
+            { userId: authUserId },
+          )
+        }
+      })
 
     tasksChannelRef.current = channel
     return () => {

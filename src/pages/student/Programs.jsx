@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BookOpen, Calendar, Users, Target, CheckCircle } from 'lucide-react'
 import Card from '../../components/common/Card'
 import StatusBadge from '../../components/common/StatusBadge'
@@ -6,14 +6,29 @@ import Modal from '../../components/common/Modal'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { useToast } from '../../hooks/useToast'
+import { useProgramManagement } from '../../hooks/useProgramManagement'
 import { formatDate } from '../../utils/time'
 
 export default function StudentPrograms() {
   const { currentUser } = useAuth()
   const { data, createApplication } = useData()
   const { showToast } = useToast()
+  const {
+    templates,
+    instances,
+    templateDetailsById,
+    instanceDetailsById,
+    fetchTemplateDetails,
+    fetchInstanceDetails,
+    createInstanceFromTemplate,
+    submitInstanceTask,
+    subscribeToInstanceTasks,
+  } = useProgramManagement()
+
   const [selectedProgram, setSelectedProgram] = useState(null)
   const [showEnrollModal, setShowEnrollModal] = useState(false)
+  const [roadmapOpen, setRoadmapOpen] = useState(false)
+  const [selectedInstanceId, setSelectedInstanceId] = useState(null)
 
   const { enrolledPrograms, availablePrograms } = useMemo(() => {
     if (!currentUser?.id || !data) return { enrolledPrograms: [], availablePrograms: [] }
@@ -54,6 +69,74 @@ export default function StudentPrograms() {
     })
     return stats
   }, [enrolledPrograms, availablePrograms, data])
+
+  const activeTemplates = useMemo(() => templates.filter((t) => t.isActive), [templates])
+  const myInstances = useMemo(() => {
+    if (!currentUser?.id) return []
+    return (instances ?? []).filter((i) => i.studentId === currentUser.id)
+  }, [currentUser?.id, instances])
+
+  const selectedInstanceDetails = useMemo(() => {
+    if (!selectedInstanceId) return null
+    return instanceDetailsById[selectedInstanceId] ?? null
+  }, [instanceDetailsById, selectedInstanceId])
+
+  const selectedInstance = selectedInstanceDetails?.instance ?? null
+  const selectedTasks = selectedInstanceDetails?.tasks ?? []
+  const selectedTemplateDetails = selectedInstance
+    ? templateDetailsById[selectedInstance.templateId] ?? null
+    : null
+
+  useEffect(() => {
+    if (!roadmapOpen || !selectedInstanceId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const details = await fetchInstanceDetails(selectedInstanceId)
+        if (cancelled) return
+        if (details?.instance?.templateId) {
+          await fetchTemplateDetails(details.instance.templateId)
+        }
+        await subscribeToInstanceTasks(selectedInstanceId)
+      } catch (e) {
+        showToast(e?.message ?? 'Failed to load roadmap', 'error')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [fetchInstanceDetails, fetchTemplateDetails, roadmapOpen, selectedInstanceId, showToast, subscribeToInstanceTasks])
+
+  const openRoadmap = (instanceId) => {
+    setSelectedInstanceId(instanceId)
+    setRoadmapOpen(true)
+  }
+
+  const closeRoadmap = () => {
+    setRoadmapOpen(false)
+    setSelectedInstanceId(null)
+  }
+
+  const handleStartTemplate = async (templateId) => {
+    try {
+      const instanceId = await createInstanceFromTemplate({ templateId })
+      showToast('Program started! Your roadmap is ready.', 'success')
+      if (instanceId) openRoadmap(instanceId)
+    } catch (e) {
+      showToast(e?.message ?? 'Failed to start program', 'error')
+    }
+  }
+
+  const handleSubmitTask = async (taskId) => {
+    const note = window.prompt('Paste a submission link or note for your coach:', '')
+    if (note === null) return
+    try {
+      await submitInstanceTask({ taskId, submission: { note } })
+      showToast('Submitted for review.', 'success')
+    } catch (e) {
+      showToast(e?.message ?? 'Failed to submit task', 'error')
+    }
+  }
 
   const handleEnroll = (program) => {
     setSelectedProgram(program)
@@ -97,6 +180,97 @@ export default function StudentPrograms() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Program Roadmaps (Templates -> Instances) */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-heading font-bold text-slate-800 dark:text-white">
+          My Roadmaps
+        </h2>
+
+        {myInstances.length === 0 ? (
+          <Card className="bg-slate-50 border-dashed dark:bg-slate-900/30">
+            <div className="py-10 text-center">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">No active roadmap yet</h3>
+              <p className="text-slate-500 dark:text-slate-400">Start a template program below to get your personalized tasks and courses.</p>
+            </div>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {myInstances.map((inst) => {
+              const tpl = templates.find((t) => t.id === inst.templateId)
+              return (
+                <Card key={inst.id}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-lg font-bold text-slate-900 dark:text-white">{tpl?.name ?? 'Program'}</div>
+                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{tpl?.description ?? ''}</div>
+                      <div className="mt-2 text-xs text-slate-400">Started: {formatDate(inst.startedAt)}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-xl bg-student-primary text-white text-sm font-bold hover:bg-blue-600 transition-colors"
+                      onClick={() => openRoadmap(inst.id)}
+                    >
+                      Open
+                    </button>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-heading font-bold text-slate-800 dark:text-white">Browse Programs</h2>
+        {activeTemplates.length === 0 ? (
+          <Card className="bg-slate-50 border-dashed dark:bg-slate-900/30">
+            <div className="py-10 text-center">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">No templates published</h3>
+              <p className="text-slate-500 dark:text-slate-400">Ask an admin to publish a program template with courses and tasks.</p>
+            </div>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {activeTemplates.map((tpl) => (
+              <Card key={tpl.id}>
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-900 dark:text-white">{tpl.name}</div>
+                      <div className="mt-1 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">{tpl.description}</div>
+                    </div>
+                    <StatusBadge value={tpl.isActive ? 'active' : 'archived'} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900"
+                      onClick={() => handleStartTemplate(tpl.id)}
+                    >
+                      Start
+                    </button>
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-colors dark:border-slate-700 dark:text-slate-200"
+                      onClick={async () => {
+                        try {
+                          await fetchTemplateDetails(tpl.id)
+                          showToast('Template loaded. Start it to get a roadmap.', 'info')
+                        } catch (e) {
+                          showToast(e?.message ?? 'Failed to load template', 'error')
+                        }
+                      }}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div>
         <h1 className="text-3xl font-heading font-bold text-slate-900 dark:text-white">Programs</h1>
         <p className="mt-2 text-lg text-slate-500 font-medium">
@@ -218,6 +392,126 @@ export default function StudentPrograms() {
                     </div>
                     
                     <div>
+
+                    {/* Roadmap Modal */}
+                    {roadmapOpen && (
+                      <Modal
+                        isOpen={roadmapOpen}
+                        onClose={closeRoadmap}
+                        title={templates.find((t) => t.id === selectedInstance?.templateId)?.name ?? 'Program Roadmap'}
+                      >
+                        {!selectedInstance ? (
+                          <div className="text-sm text-slate-500">Loading instance…</div>
+                        ) : (
+                          <div className="space-y-6">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/30">
+                              <div className="flex items-center justify-between gap-4">
+                                <div>
+                                  <div className="text-sm font-bold text-slate-900 dark:text-white">Progress</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">Tasks approved drive milestones</div>
+                                </div>
+                                <div className="text-sm font-bold text-slate-900 dark:text-white">
+                                  {selectedTasks.filter((t) => t.status === 'approved').length} / {selectedTasks.length} approved
+                                </div>
+                              </div>
+                            </div>
+
+                            {selectedTemplateDetails?.stages?.length ? (
+                              <div className="space-y-6">
+                                {selectedTemplateDetails.stages.map((stage) => {
+                                  const stageContents = (selectedTemplateDetails.contents ?? []).filter((c) => c.stageId === stage.id)
+                                  const stageTasks = selectedTasks.filter((t) => t.stageId === stage.id)
+                                  const stageApproved = stageTasks.filter((t) => t.status === 'approved').length
+
+                                  return (
+                                    <div key={stage.id} className="space-y-3">
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                          <div className="text-lg font-bold text-slate-900 dark:text-white">{stage.name}</div>
+                                          {stage.description ? (
+                                            <div className="text-sm text-slate-500 dark:text-slate-400">{stage.description}</div>
+                                          ) : null}
+                                        </div>
+                                        <div className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                                          {stageApproved}/{stageTasks.length} approved
+                                        </div>
+                                      </div>
+
+                                      {stageContents.length > 0 && (
+                                        <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                                          <div className="text-sm font-bold text-slate-900 dark:text-white">Courses & Videos</div>
+                                          <div className="mt-3 space-y-2">
+                                            {stageContents.map((item) => (
+                                              <a
+                                                key={item.id}
+                                                href={item.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="block rounded-lg border border-slate-200 p-3 hover:bg-slate-50 transition-colors dark:border-slate-700 dark:hover:bg-slate-800"
+                                              >
+                                                <div className="flex items-center justify-between gap-3">
+                                                  <div className="min-w-0">
+                                                    <div className="font-bold text-slate-900 dark:text-white truncate">{item.title}</div>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                      {item.contentType.toUpperCase()}
+                                                      {item.provider ? ` • ${item.provider}` : ''}
+                                                      {item.durationMinutes ? ` • ${item.durationMinutes}m` : ''}
+                                                    </div>
+                                                  </div>
+                                                  <div className="text-xs font-bold text-student-primary">Open</div>
+                                                </div>
+                                              </a>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      <div className="space-y-2">
+                                        {stageTasks.length === 0 ? (
+                                          <div className="text-sm text-slate-500 dark:text-slate-400">No tasks in this stage yet.</div>
+                                        ) : (
+                                          stageTasks.map((task) => (
+                                            <div
+                                              key={task.id}
+                                              className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-700"
+                                            >
+                                              <div className="min-w-0">
+                                                <div className="font-bold text-slate-900 dark:text-white">{task.title}</div>
+                                                {task.description ? (
+                                                  <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.description}</div>
+                                                ) : null}
+                                                <div className="mt-2 text-xs text-slate-400">
+                                                  Status: <span className="font-bold">{task.status}</span>
+                                                  {task.deadline ? ` • Due: ${formatDate(task.deadline)}` : ''}
+                                                </div>
+                                              </div>
+                                              <div className="shrink-0 flex items-center gap-2">
+                                                <StatusBadge value={task.status} />
+                                                {task.status !== 'approved' && (
+                                                  <button
+                                                    type="button"
+                                                    className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900"
+                                                    onClick={() => handleSubmitTask(task.id)}
+                                                  >
+                                                    Submit
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-slate-500">Loading template stages…</div>
+                            )}
+                          </div>
+                        )}
+                      </Modal>
+                    )}
                         <h3 className="text-lg font-heading font-bold text-slate-900 mb-2">{program.name}</h3>
                         <p className="text-sm text-slate-500 line-clamp-3 leading-relaxed">
                         {program.description}
