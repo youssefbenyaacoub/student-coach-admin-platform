@@ -5,6 +5,7 @@ import Modal from '../../components/common/Modal'
 import EmptyState from '../../components/common/EmptyState'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
+import { useToast } from '../../hooks/useToast'
 import IdeaSubmissionForm from '../../components/projects/IdeaSubmissionForm'
 import AddSubmissionModal from '../../components/projects/AddSubmissionModal'
 import ProjectTimeline from '../../components/projects/ProjectTimeline'
@@ -12,6 +13,7 @@ import { canAddNonIdeaSubmissions } from '../../models/projects'
 
 export default function StudentProjects() {
   const { currentUser } = useAuth()
+  const { push } = useToast()
   const {
     getUserById,
     listProjects,
@@ -43,6 +45,21 @@ export default function StudentProjects() {
     if (!res.success) {
       setErrors(res.errors ?? { form: res.error ?? 'Please fix the errors and try again.' })
       return
+    }
+
+    if (res.localFallback) {
+      let supabaseHost = ''
+      try {
+        supabaseHost = new URL(import.meta.env.VITE_SUPABASE_URL).host
+      } catch {
+        supabaseHost = ''
+      }
+
+      push({
+        type: 'warning',
+        title: 'Saved locally (Supabase not ready)',
+        message: `This project was saved in your browser only, so admin will not see it until Supabase tables are installed and your app is connected to that Supabase project.${supabaseHost ? ` Connected Supabase: ${supabaseHost}.` : ''}`,
+      })
     }
     setCreateOpen(false)
     setSelectedProjectId(res.project.id)

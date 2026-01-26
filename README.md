@@ -18,6 +18,7 @@ The in-app notifications bell is backed by a Supabase notifications table.
 If that table does not exist, cross-user notifications (admin/coach -> student) cannot work.
 
 - Run the SQL in supabase-schema.sql in the Supabase SQL Editor.
+- Run the SQL in supabase-projects.sql so projects/submissions are stored in Supabase (not browser localStorage).
 - Enable Realtime for public.notifications:
 	- Option A (SQL): run the REALTIME (Supabase Realtime) section near the bottom of supabase-schema.sql.
 	- Option B (UI): Database -> Replication -> enable Realtime for notifications.

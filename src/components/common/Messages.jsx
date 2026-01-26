@@ -8,6 +8,8 @@ import { formatDateTime } from '../../utils/time'
 import { supabase } from '../../lib/supabase'
 import { playMessageSound, primeAudioOnFirstUserGesture } from '../../utils/sound'
 import Modal from './Modal'
+import CallModal from './CallModal'
+import { useWebRTCCall } from '../../hooks/useWebRTCCall'
 
 export default function Messages() {
   const { currentUser, role } = useAuth()
@@ -31,6 +33,11 @@ export default function Messages() {
   const outgoingTypingTimeoutRef = useRef(null)
   const lastTypingBroadcastRef = useRef(0)
   const lastMessageIdRef = useRef(null)
+
+    // Call UI refs
+    const localVideoRef = useRef(null)
+    const remoteVideoRef = useRef(null)
+    const remoteAudioRef = useRef(null)
   
   // Prime audio on mount (helps with autoplay policy)
   useEffect(() => {
@@ -183,9 +190,45 @@ export default function Messages() {
       return a < b ? `${a}:${b}` : `${b}:${a}`
   }, [currentUser?.id, activePeerId])
 
+    const call = useWebRTCCall({
+        currentUserId: currentUser?.id,
+        peerId: activePeerId,
+        conversationKey,
+    })
+
+    useEffect(() => {
+        if (localVideoRef.current) {
+            try { localVideoRef.current.srcObject = call.localStream ?? null } catch { /* ignore */ }
+        }
+    }, [call.localStream])
+
+    useEffect(() => {
+        if (remoteVideoRef.current) {
+            try { remoteVideoRef.current.srcObject = call.remoteStream ?? null } catch { /* ignore */ }
+        }
+        if (remoteAudioRef.current) {
+            try { remoteAudioRef.current.srcObject = call.remoteStream ?? null } catch { /* ignore */ }
+        }
+    }, [call.remoteStream])
+
+    const handleCloseCall = async () => {
+        if (call.status === 'incoming') return call.rejectCall()
+        return call.endCall()
+    }
+
+    const handleStartAudioCall = async () => {
+        const res = await call.startAudioCall()
+        if (!res?.success) showToast('Call failed (check mic permission / Supabase auth)', 'error')
+    }
+
+    const handleStartVideoCall = async () => {
+        const res = await call.startVideoCall()
+        if (!res?.success) showToast('Call failed (check camera permission / Supabase auth)', 'error')
+    }
+
   useEffect(() => {
     // Reset typing state when conversation changes
-    setPeerTyping(false)
+        Promise.resolve().then(() => setPeerTyping(false))
 
     // Clean up channel
     if (typingChannelRef.current) {
@@ -444,8 +487,22 @@ export default function Messages() {
                     </div>
                     <div className="flex items-center gap-2 text-slate-400">
                         {/* Actions placeholders */}
-                        <button className="p-2 hover:bg-slate-100 rounded-full transition-colors"><Phone className="h-5 w-5" /></button>
-                        <button className="p-2 hover:bg-slate-100 rounded-full transition-colors"><Video className="h-5 w-5" /></button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleStartAudioCall}
+                                                    className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                                                    title="Audio call"
+                                                >
+                                                    <Phone className="h-5 w-5" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleStartVideoCall}
+                                                    className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                                                    title="Video call"
+                                                >
+                                                    <Video className="h-5 w-5" />
+                                                </button>
                         <button className="p-2 hover:bg-slate-100 rounded-full transition-colors"><MoreVertical className="h-5 w-5" /></button>
                     </div>
                 </div>
@@ -557,6 +614,25 @@ export default function Messages() {
                         </button>
                     </form>
                 </div>
+
+                                <CallModal
+                                    open={call.status !== 'idle' && call.status !== 'ended'}
+                                    status={call.status}
+                                    direction={call.direction}
+                                    callType={call.callType}
+                                    peerName={activeConversation?.peerName}
+                                    error={call.error}
+                                    muted={call.muted}
+                                    cameraOff={call.cameraOff}
+                                    onAccept={call.acceptCall}
+                                    onReject={call.rejectCall}
+                                    onEnd={handleCloseCall}
+                                    onToggleMute={call.toggleMute}
+                                    onToggleCamera={call.toggleCamera}
+                                    localVideoRef={localVideoRef}
+                                    remoteVideoRef={remoteVideoRef}
+                                    remoteAudioRef={remoteAudioRef}
+                                />
             </>
         ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-300 p-8">

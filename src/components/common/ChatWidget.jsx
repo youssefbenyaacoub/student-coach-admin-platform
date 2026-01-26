@@ -377,6 +377,7 @@ export default function ChatWidget() {
                         value={input}
                                                 onChange={(e) => {
                                                     const next = e.target.value
+                                                    setInput(next)
                                                     
                                                     if (!conversationKey || !typingChannelRef.current) return
 
