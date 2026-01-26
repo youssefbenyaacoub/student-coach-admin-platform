@@ -1,5 +1,5 @@
 import { Plus, RefreshCcw, Trash2, Eye, Edit, Search, Calendar, Users, Briefcase } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Card from '../../components/common/Card'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
 import DataTable from '../../components/common/DataTable'
@@ -47,6 +47,9 @@ export default function AdminPrograms() {
     addStage,
     addContentItem,
     addTaskTemplate,
+    deleteStage,
+    deleteContentItem,
+    deleteTaskTemplate,
   } = useProgramManagement()
 
   const [open, setOpen] = useState(false)
@@ -59,6 +62,27 @@ export default function AdminPrograms() {
 
   const [templateEditorOpen, setTemplateEditorOpen] = useState(false)
   const [activeTemplateId, setActiveTemplateId] = useState(null)
+
+  const [templateMode, setTemplateMode] = useState('edit')
+  const [templateBusy, setTemplateBusy] = useState(false)
+  const [templateForm, setTemplateForm] = useState({ name: '', description: '', isActive: true })
+  const [templateFormErrors, setTemplateFormErrors] = useState({})
+  const [selectedStageId, setSelectedStageId] = useState(null)
+  const [stageForm, setStageForm] = useState({ name: '', description: '' })
+  const [contentForm, setContentForm] = useState({
+    contentType: 'video',
+    title: '',
+    url: '',
+    provider: '',
+    durationMinutes: '',
+    description: '',
+  })
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    dueOffsetDays: '',
+    requiresApproval: true,
+  })
 
   const programs = useMemo(() => data?.programs ?? [], [data?.programs])
   const coaches = useMemo(() => (data?.users ?? []).filter((u) => u.role === 'coach'), [data?.users])
@@ -73,30 +97,98 @@ export default function AdminPrograms() {
     [activeTemplateId, templateDetailsById],
   )
 
-  const createTemplateQuick = async () => {
-    const name = window.prompt('Template name (e.g. Startup Incubation: IDEA → MVP):', '')
-    if (!name) return
-    const description = window.prompt('Short description:', '')
-    try {
-      const created = await upsertTemplate({ name, description, isActive: true })
-      push({ type: 'success', title: 'Template created', message: 'Now add stages, videos/courses, and tasks.' })
-      setActiveTemplateId(created.id)
-      setTemplateEditorOpen(true)
-      await fetchTemplateDetails(created.id)
-    } catch (e) {
-      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to create template' })
-    }
+  const openCreateTemplate = () => {
+    setTemplateMode('create')
+    setActiveTemplateId(null)
+    setSelectedStageId(null)
+    setTemplateForm({ name: '', description: '', isActive: true })
+    setTemplateFormErrors({})
+    setStageForm({ name: '', description: '' })
+    setContentForm({ contentType: 'video', title: '', url: '', provider: '', durationMinutes: '', description: '' })
+    setTaskForm({ title: '', description: '', dueOffsetDays: '', requiresApproval: true })
+    setTemplateEditorOpen(true)
   }
 
   const openTemplateEditor = async (templateId) => {
+    setTemplateMode('edit')
     setActiveTemplateId(templateId)
     setTemplateEditorOpen(true)
     try {
-      await fetchTemplateDetails(templateId)
+      const nextTemplate = templates.find((t) => t.id === templateId) ?? null
+      if (nextTemplate) {
+        setTemplateForm({
+          name: nextTemplate.name ?? '',
+          description: nextTemplate.description ?? '',
+          isActive: Boolean(nextTemplate.isActive),
+        })
+      }
+
+      const details = await fetchTemplateDetails(templateId)
+      const firstStageId = details?.stages?.[0]?.id ?? null
+      setSelectedStageId(firstStageId)
     } catch (e) {
       push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to load template details' })
     }
   }
+
+  const closeTemplateEditor = () => {
+    if (templateBusy) return
+    setTemplateEditorOpen(false)
+    setTemplateFormErrors({})
+  }
+
+  const saveTemplateMeta = async () => {
+    const errs = {}
+    if (!String(templateForm.name ?? '').trim()) errs.name = 'Name is required'
+    setTemplateFormErrors(errs)
+    if (Object.keys(errs).length) return
+
+    setTemplateBusy(true)
+    try {
+      const saved = await upsertTemplate({
+        id: templateMode === 'edit' ? activeTemplateId : undefined,
+        name: String(templateForm.name ?? '').trim(),
+        description: String(templateForm.description ?? '').trim(),
+        isActive: Boolean(templateForm.isActive),
+      })
+
+      setTemplateMode('edit')
+      setActiveTemplateId(saved.id)
+      push({
+        type: 'success',
+        title: templateMode === 'create' ? 'Template created' : 'Template updated',
+        message: 'Now build stages, then add videos/courses and tasks.',
+      })
+
+      const details = await fetchTemplateDetails(saved.id)
+      const firstStageId = details?.stages?.[0]?.id ?? null
+      setSelectedStageId((prev) => prev ?? firstStageId)
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to save template' })
+    } finally {
+      setTemplateBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!templateEditorOpen) return
+    if (templateMode !== 'edit') return
+    if (!activeTemplate) return
+
+    setTemplateForm({
+      name: activeTemplate.name ?? '',
+      description: activeTemplate.description ?? '',
+      isActive: Boolean(activeTemplate.isActive),
+    })
+  }, [activeTemplate, templateEditorOpen, templateMode])
+
+  useEffect(() => {
+    if (!activeTemplateId) return
+    if (!activeTemplateDetails) return
+    const stageIds = new Set((activeTemplateDetails.stages ?? []).map((s) => s.id))
+    if (selectedStageId && stageIds.has(selectedStageId)) return
+    setSelectedStageId(activeTemplateDetails.stages?.[0]?.id ?? null)
+  }, [activeTemplateDetails, activeTemplateId, selectedStageId])
 
   const deleteTemplate = async (templateId) => {
     if (!window.confirm('Delete this template? This will delete its stages/content/task templates.')) return
@@ -112,66 +204,164 @@ export default function AdminPrograms() {
     }
   }
 
-  const addStageQuick = async () => {
-    if (!activeTemplateId) return
-    const name = window.prompt('Stage name (e.g. IDEA, PROTOTYPE, MVP):', '')
-    if (!name) return
-    const description = window.prompt('Stage description (optional):', '')
-    const orderIndex = (activeTemplateDetails?.stages?.length ?? 0)
+  const ensureValidUrl = (value) => {
+    const v = String(value ?? '').trim()
+    if (!v) return 'URL is required'
+    if (!/^https?:\/\//i.test(v)) return 'URL must start with http:// or https://'
+    return null
+  }
+
+  const handleAddStage = async () => {
+    if (!activeTemplateId) {
+      push({ type: 'warning', title: 'Save template first', message: 'Create the template before adding stages.' })
+      return
+    }
+
+    const name = String(stageForm.name ?? '').trim()
+    if (!name) {
+      push({ type: 'warning', title: 'Stage name required', message: 'Give the stage a name (e.g. IDEA).' })
+      return
+    }
+
+    setTemplateBusy(true)
     try {
-      await addStage({ templateId: activeTemplateId, name, description, orderIndex })
-      push({ type: 'success', title: 'Stage added', message: 'Now add videos/courses and tasks.' })
+      const orderIndex = (activeTemplateDetails?.stages?.length ?? 0)
+      const stage = await addStage({
+        templateId: activeTemplateId,
+        name,
+        description: String(stageForm.description ?? '').trim(),
+        orderIndex,
+      })
+      setStageForm({ name: '', description: '' })
+      setSelectedStageId(stage?.id ?? null)
+      push({ type: 'success', title: 'Stage added', message: 'Now add videos/courses and tasks for this stage.' })
     } catch (e) {
       push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to add stage' })
+    } finally {
+      setTemplateBusy(false)
     }
   }
 
-  const addContentQuick = async (stageId) => {
-    const contentType = window.prompt("Content type: video | course | article | link", 'video')
-    if (!contentType) return
-    const title = window.prompt('Content title:', '')
-    if (!title) return
-    const url = window.prompt('URL (YouTube / course link / doc link):', '')
-    if (!url) return
-    const provider = window.prompt('Provider (optional, e.g. YouTube, Coursera):', '')
-    const duration = window.prompt('Duration minutes (optional):', '')
-    const durationMinutes = duration ? Number(duration) : null
-    const orderIndex = (activeTemplateDetails?.contents?.filter((c) => c.stageId === stageId)?.length ?? 0)
+  const handleAddContent = async () => {
+    if (!selectedStageId) {
+      push({ type: 'warning', title: 'Pick a stage', message: 'Select a stage before adding content.' })
+      return
+    }
+
+    const title = String(contentForm.title ?? '').trim()
+    if (!title) {
+      push({ type: 'warning', title: 'Title required', message: 'Give your content a title.' })
+      return
+    }
+    const urlError = ensureValidUrl(contentForm.url)
+    if (urlError) {
+      push({ type: 'warning', title: 'Invalid URL', message: urlError })
+      return
+    }
+
+    const rawDuration = String(contentForm.durationMinutes ?? '').trim()
+    const durationMinutes = rawDuration ? Number(rawDuration) : null
+    const safeDuration = Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : null
+    const orderIndex = (activeTemplateDetails?.contents ?? []).filter((c) => c.stageId === selectedStageId).length
+
+    setTemplateBusy(true)
     try {
       await addContentItem({
-        stageId,
-        contentType,
+        stageId: selectedStageId,
+        contentType: contentForm.contentType,
         title,
-        url,
-        provider,
-        durationMinutes: Number.isFinite(durationMinutes) ? durationMinutes : null,
+        description: String(contentForm.description ?? '').trim(),
+        url: String(contentForm.url ?? '').trim(),
+        provider: String(contentForm.provider ?? '').trim(),
+        durationMinutes: safeDuration,
         orderIndex,
       })
+      setContentForm((prev) => ({ ...prev, title: '', url: '', provider: '', durationMinutes: '', description: '' }))
       push({ type: 'success', title: 'Added', message: 'Content item added.' })
     } catch (e) {
       push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to add content' })
+    } finally {
+      setTemplateBusy(false)
     }
   }
 
-  const addTaskTemplateQuick = async (stageId) => {
-    const title = window.prompt('Task title:', '')
-    if (!title) return
-    const description = window.prompt('Task description (optional):', '')
-    const dueOffset = window.prompt('Due offset days from start (optional):', '')
-    const dueOffsetDays = dueOffset ? Number(dueOffset) : null
-    const orderIndex = (activeTemplateDetails?.taskTemplates?.filter((t) => t.stageId === stageId)?.length ?? 0)
+  const handleAddTaskTemplate = async () => {
+    if (!selectedStageId) {
+      push({ type: 'warning', title: 'Pick a stage', message: 'Select a stage before adding tasks.' })
+      return
+    }
+
+    const title = String(taskForm.title ?? '').trim()
+    if (!title) {
+      push({ type: 'warning', title: 'Title required', message: 'Give your task a title.' })
+      return
+    }
+
+    const rawDue = String(taskForm.dueOffsetDays ?? '').trim()
+    const dueOffsetDays = rawDue ? Number(rawDue) : null
+    const safeDueOffsetDays = Number.isFinite(dueOffsetDays) ? dueOffsetDays : null
+    const orderIndex = (activeTemplateDetails?.taskTemplates ?? []).filter((t) => t.stageId === selectedStageId).length
+
+    setTemplateBusy(true)
     try {
       await addTaskTemplate({
-        stageId,
+        stageId: selectedStageId,
         title,
-        description,
-        dueOffsetDays: Number.isFinite(dueOffsetDays) ? dueOffsetDays : null,
+        description: String(taskForm.description ?? '').trim(),
+        dueOffsetDays: safeDueOffsetDays,
         orderIndex,
-        requiresApproval: true,
+        requiresApproval: Boolean(taskForm.requiresApproval),
       })
+      setTaskForm((prev) => ({ ...prev, title: '', description: '', dueOffsetDays: '' }))
       push({ type: 'success', title: 'Added', message: 'Task template added.' })
     } catch (e) {
       push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to add task template' })
+    } finally {
+      setTemplateBusy(false)
+    }
+  }
+
+  const handleDeleteStage = async (stageId) => {
+    if (!activeTemplateId) return
+    if (!window.confirm('Delete this stage? This will remove its content and task templates.')) return
+    setTemplateBusy(true)
+    try {
+      await deleteStage({ templateId: activeTemplateId, stageId })
+      if (selectedStageId === stageId) {
+        const remaining = (activeTemplateDetails?.stages ?? []).filter((s) => s.id !== stageId)
+        setSelectedStageId(remaining?.[0]?.id ?? null)
+      }
+      push({ type: 'success', title: 'Deleted', message: 'Stage removed.' })
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to delete stage' })
+    } finally {
+      setTemplateBusy(false)
+    }
+  }
+
+  const handleDeleteContent = async (contentId) => {
+    if (!window.confirm('Delete this content item?')) return
+    setTemplateBusy(true)
+    try {
+      await deleteContentItem({ contentId })
+      push({ type: 'success', title: 'Deleted', message: 'Content removed.' })
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to delete content' })
+    } finally {
+      setTemplateBusy(false)
+    }
+  }
+
+  const handleDeleteTaskTemplate = async (taskTemplateId) => {
+    if (!window.confirm('Delete this task template?')) return
+    setTemplateBusy(true)
+    try {
+      await deleteTaskTemplate({ taskTemplateId })
+      push({ type: 'success', title: 'Deleted', message: 'Task template removed.' })
+    } catch (e) {
+      push({ type: 'danger', title: 'Error', message: e?.message ?? 'Failed to delete task template' })
+    } finally {
+      setTemplateBusy(false)
     }
   }
 
@@ -354,7 +544,7 @@ export default function AdminPrograms() {
           </div>
           <button
             type="button"
-            onClick={createTemplateQuick}
+            onClick={openCreateTemplate}
             className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900"
           >
             New Template
@@ -673,109 +863,438 @@ export default function AdminPrograms() {
 
       <Modal
         isOpen={templateEditorOpen}
-        onClose={() => setTemplateEditorOpen(false)}
-        title={activeTemplate ? `Edit Template: ${activeTemplate.name}` : 'Edit Template'}
+        onClose={closeTemplateEditor}
+        title={
+          templateMode === 'create'
+            ? 'Create Template'
+            : activeTemplate
+              ? `Edit Template: ${activeTemplate.name}`
+              : 'Edit Template'
+        }
         footer={
           <div className="flex gap-3 w-full">
             <button
               type="button"
-              onClick={() => setTemplateEditorOpen(false)}
+              onClick={closeTemplateEditor}
+              disabled={templateBusy}
               className="flex-1 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               Close
             </button>
             <button
               type="button"
-              onClick={addStageQuick}
-              className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900"
-              disabled={!activeTemplateId}
+              onClick={saveTemplateMeta}
+              disabled={templateBusy}
+              className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 dark:bg-white dark:text-slate-900"
             >
-              Add Stage
+              {templateBusy ? 'Saving…' : templateMode === 'create' ? 'Create Template' : 'Save Template'}
             </button>
           </div>
         }
       >
-        {!activeTemplateId ? (
-          <div className="text-sm text-slate-500">Pick a template to edit.</div>
-        ) : !activeTemplateDetails ? (
-          <div className="text-sm text-slate-500">Loading template…</div>
-        ) : (
-          <div className="space-y-6">
-            {(activeTemplateDetails.stages ?? []).length === 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/30 dark:text-slate-300">
-                No stages yet. Add a stage (IDEA/PROTOTYPE/MVP) to start building content and tasks.
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Step 1 — Template info</div>
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Name</label>
+                <input
+                  value={templateForm.name}
+                  onChange={(e) => {
+                    setTemplateForm((f) => ({ ...f, name: e.target.value }))
+                    if (templateFormErrors.name) setTemplateFormErrors((prev) => ({ ...prev, name: null }))
+                  }}
+                  placeholder="e.g. Startup Incubation: IDEA → MVP"
+                  className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all ${
+                    templateFormErrors.name
+                      ? 'border-red-300 focus:ring-red-100'
+                      : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
+                  }`}
+                  disabled={templateBusy}
+                />
+                {templateFormErrors.name ? (
+                  <p className="mt-1 text-xs font-bold text-red-500">{templateFormErrors.name}</p>
+                ) : null}
               </div>
-            ) : (
-              activeTemplateDetails.stages.map((stage) => {
-                const stageContents = (activeTemplateDetails.contents ?? []).filter((c) => c.stageId === stage.id)
-                const stageTasks = (activeTemplateDetails.taskTemplates ?? []).filter((t) => t.stageId === stage.id)
-                return (
-                  <div key={stage.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="font-bold text-slate-900 dark:text-white">{stage.name}</div>
-                        {stage.description ? (
-                          <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{stage.description}</div>
-                        ) : null}
-                        <div className="mt-2 text-xs text-slate-400">
-                          {stageContents.length} content items • {stageTasks.length} task templates
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => addContentQuick(stage.id)}
-                          className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors dark:border-slate-700 dark:text-slate-200"
-                        >
-                          Add Video/Course
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => addTaskTemplateQuick(stage.id)}
-                          className="px-3 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-900"
-                        >
-                          Add Task
-                        </button>
-                      </div>
-                    </div>
 
-                    {stageContents.length > 0 ? (
-                      <div className="mt-4 space-y-2">
-                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Content</div>
-                        {stageContents.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-                            <div className="min-w-0">
-                              <div className="font-bold text-slate-900 dark:text-white truncate">{item.title}</div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                                {item.contentType.toUpperCase()} • {item.url}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Description</label>
+                <textarea
+                  value={templateForm.description}
+                  onChange={(e) => setTemplateForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="What is this program template about?"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 min-h-[90px] dark:border-slate-700 dark:bg-slate-800"
+                  disabled={templateBusy}
+                />
+              </div>
 
-                    {stageTasks.length > 0 ? (
-                      <div className="mt-4 space-y-2">
-                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Tasks</div>
-                        {stageTasks.map((t) => (
-                          <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-                            <div className="min-w-0">
-                              <div className="font-bold text-slate-900 dark:text-white truncate">{t.title}</div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400">
-                                {t.dueOffsetDays !== null ? `Due +${t.dueOffsetDays}d` : 'No default deadline'}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                )
-              })
-            )}
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                <div>
+                  <div className="text-sm font-bold text-slate-800 dark:text-slate-200">Active</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Only active templates can be started by students.</div>
+                </div>
+                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(templateForm.isActive)}
+                    onChange={(e) => setTemplateForm((f) => ({ ...f, isActive: e.target.checked }))}
+                    disabled={templateBusy}
+                  />
+                  {templateForm.isActive ? 'Active' : 'Archived'}
+                </label>
+              </div>
+
+              {templateMode === 'edit' && activeTemplateId ? (
+                <button
+                  type="button"
+                  onClick={() => deleteTemplate(activeTemplateId)}
+                  className="rounded-xl border border-red-200 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors"
+                  disabled={templateBusy}
+                >
+                  Delete template
+                </button>
+              ) : (
+                <div className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  Create the template first, then you can add stages.
+                </div>
+              )}
+            </div>
           </div>
-        )}
+
+          {!activeTemplateId ? null : !activeTemplateDetails ? (
+            <div className="text-sm text-slate-500">Loading template structure…</div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Step 2 — Build stages</div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">Stages</div>
+                    <div className="text-xs text-slate-400">{(activeTemplateDetails.stages ?? []).length}</div>
+                  </div>
+
+                  {(activeTemplateDetails.stages ?? []).length === 0 ? (
+                    <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                      Add your first stage (IDEA, PROTOTYPE, MVP…).
+                    </div>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {(activeTemplateDetails.stages ?? []).map((s) => {
+                        const isSelected = s.id === selectedStageId
+                        const countContent = (activeTemplateDetails.contents ?? []).filter((c) => c.stageId === s.id).length
+                        const countTasks = (activeTemplateDetails.taskTemplates ?? []).filter((t) => t.stageId === s.id).length
+                        return (
+                          <div
+                            key={s.id}
+                            className={`rounded-xl border p-3 transition-colors ${
+                              isSelected
+                                ? 'border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-900/30'
+                                : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-900/20'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setSelectedStageId(s.id)}
+                              className="w-full text-left"
+                              disabled={templateBusy}
+                            >
+                              <div className="font-bold text-slate-900 dark:text-white truncate">{s.name}</div>
+                              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                {countContent} content • {countTasks} tasks
+                              </div>
+                            </button>
+
+                            <div className="mt-2 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStage(s.id)}
+                                className="px-2 py-1 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50"
+                                disabled={templateBusy}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">Add stage</div>
+                    <div className="mt-2 space-y-2">
+                      <input
+                        value={stageForm.name}
+                        onChange={(e) => setStageForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="Stage name (e.g. IDEA)"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                        disabled={templateBusy}
+                      />
+                      <input
+                        value={stageForm.description}
+                        onChange={(e) => setStageForm((f) => ({ ...f, description: e.target.value }))}
+                        placeholder="Short description (optional)"
+                        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                        disabled={templateBusy}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddStage}
+                        disabled={templateBusy}
+                        className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 dark:bg-white dark:text-slate-900"
+                      >
+                        Add stage
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                  {!selectedStageId ? (
+                    <div className="text-sm text-slate-500">Select a stage to add content and tasks.</div>
+                  ) : (
+                    (() => {
+                      const stage = (activeTemplateDetails.stages ?? []).find((s) => s.id === selectedStageId)
+                      const stageContents = (activeTemplateDetails.contents ?? []).filter((c) => c.stageId === selectedStageId)
+                      const stageTasks = (activeTemplateDetails.taskTemplates ?? []).filter((t) => t.stageId === selectedStageId)
+                      if (!stage) return <div className="text-sm text-slate-500">Stage not found.</div>
+
+                      return (
+                        <div className="space-y-6">
+                          <div>
+                            <div className="text-sm font-bold text-slate-900 dark:text-white">Selected stage</div>
+                            <div className="mt-1 text-lg font-heading font-bold text-slate-900 dark:text-white">{stage.name}</div>
+                            {stage.description ? (
+                              <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{stage.description}</div>
+                            ) : null}
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-bold text-slate-900 dark:text-white">Content (videos/courses)</div>
+                              <div className="text-xs text-slate-400">{stageContents.length}</div>
+                            </div>
+
+                            {stageContents.length === 0 ? (
+                              <div className="text-sm text-slate-500 dark:text-slate-400">No content yet.</div>
+                            ) : (
+                              <div className="space-y-2">
+                                {stageContents.map((item) => (
+                                  <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                                    <div className="min-w-0">
+                                      <div className="font-bold text-slate-900 dark:text-white truncate">{item.title}</div>
+                                      <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                        {String(item.contentType ?? '').toUpperCase()} • {item.url}
+                                      </div>
+                                      {(item.provider || item.durationMinutes) ? (
+                                        <div className="mt-1 text-xs text-slate-400">
+                                          {item.provider ? item.provider : null}
+                                          {item.provider && item.durationMinutes ? ' • ' : null}
+                                          {item.durationMinutes ? `${item.durationMinutes} min` : null}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteContent(item.id)}
+                                      className="px-2 py-1 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50"
+                                      disabled={templateBusy}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                              <div className="text-sm font-bold text-slate-900 dark:text-white">Add content</div>
+                              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">Type</label>
+                                  <select
+                                    value={contentForm.contentType}
+                                    onChange={(e) => setContentForm((f) => ({ ...f, contentType: e.target.value }))}
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 bg-white dark:bg-slate-800 dark:border-slate-700"
+                                    disabled={templateBusy}
+                                  >
+                                    <option value="video">Video</option>
+                                    <option value="course">Course</option>
+                                    <option value="article">Article</option>
+                                    <option value="link">Link</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">Duration (min)</label>
+                                  <input
+                                    value={contentForm.durationMinutes}
+                                    onChange={(e) => setContentForm((f) => ({ ...f, durationMinutes: e.target.value }))}
+                                    placeholder="optional"
+                                    type="number"
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                                    disabled={templateBusy}
+                                    min={0}
+                                  />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">Title</label>
+                                  <input
+                                    value={contentForm.title}
+                                    onChange={(e) => setContentForm((f) => ({ ...f, title: e.target.value }))}
+                                    placeholder="e.g. Customer discovery basics"
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                                    disabled={templateBusy}
+                                  />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">URL</label>
+                                  <input
+                                    value={contentForm.url}
+                                    onChange={(e) => setContentForm((f) => ({ ...f, url: e.target.value }))}
+                                    placeholder="https://..."
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                                    disabled={templateBusy}
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">Provider</label>
+                                  <input
+                                    value={contentForm.provider}
+                                    onChange={(e) => setContentForm((f) => ({ ...f, provider: e.target.value }))}
+                                    placeholder="YouTube, Coursera… (optional)"
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                                    disabled={templateBusy}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">Description</label>
+                                  <input
+                                    value={contentForm.description}
+                                    onChange={(e) => setContentForm((f) => ({ ...f, description: e.target.value }))}
+                                    placeholder="optional"
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                                    disabled={templateBusy}
+                                  />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleAddContent}
+                                    disabled={templateBusy}
+                                    className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 dark:bg-white dark:text-slate-900"
+                                  >
+                                    Add content
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm font-bold text-slate-900 dark:text-white">Tasks</div>
+                              <div className="text-xs text-slate-400">{stageTasks.length}</div>
+                            </div>
+
+                            {stageTasks.length === 0 ? (
+                              <div className="text-sm text-slate-500 dark:text-slate-400">No tasks yet.</div>
+                            ) : (
+                              <div className="space-y-2">
+                                {stageTasks.map((t) => (
+                                  <div key={t.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                                    <div className="min-w-0">
+                                      <div className="font-bold text-slate-900 dark:text-white truncate">{t.title}</div>
+                                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                                        {t.dueOffsetDays !== null ? `Due +${t.dueOffsetDays}d` : 'No default deadline'}
+                                        {t.requiresApproval ? ' • Approval required' : ' • No approval'}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTaskTemplate(t.id)}
+                                      className="px-2 py-1 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50"
+                                      disabled={templateBusy}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                              <div className="text-sm font-bold text-slate-900 dark:text-white">Add task</div>
+                              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">Title</label>
+                                  <input
+                                    value={taskForm.title}
+                                    onChange={(e) => setTaskForm((f) => ({ ...f, title: e.target.value }))}
+                                    placeholder="e.g. Submit problem statement"
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                                    disabled={templateBusy}
+                                  />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">Description</label>
+                                  <input
+                                    value={taskForm.description}
+                                    onChange={(e) => setTaskForm((f) => ({ ...f, description: e.target.value }))}
+                                    placeholder="optional"
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                                    disabled={templateBusy}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-500 mb-1">Due offset (days)</label>
+                                  <input
+                                    value={taskForm.dueOffsetDays}
+                                    onChange={(e) => setTaskForm((f) => ({ ...f, dueOffsetDays: e.target.value }))}
+                                    placeholder="optional"
+                                    type="number"
+                                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                                    disabled={templateBusy}
+                                  />
+                                </div>
+                                <div className="flex items-end">
+                                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(taskForm.requiresApproval)}
+                                      onChange={(e) => setTaskForm((f) => ({ ...f, requiresApproval: e.target.checked }))}
+                                      disabled={templateBusy}
+                                    />
+                                    Requires approval
+                                  </label>
+                                </div>
+                                <div className="md:col-span-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleAddTaskTemplate}
+                                    disabled={templateBusy}
+                                    className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 dark:bg-white dark:text-slate-900"
+                                  >
+                                    Add task
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </Modal>
 
       <ConfirmDialog

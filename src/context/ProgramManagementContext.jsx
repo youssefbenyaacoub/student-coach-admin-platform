@@ -306,6 +306,61 @@ export function ProgramManagementProvider({ children }) {
     return tt
   }, [])
 
+  const deleteStage = useCallback(async ({ templateId, stageId } = {}) => {
+    if (!templateId) throw new Error('templateId required')
+    if (!stageId) throw new Error('stageId required')
+
+    const { error } = await supabase.from('program_template_stages').delete().eq('id', stageId)
+    if (error) throw error
+
+    setTemplateDetailsById((prev) => {
+      const details = prev[templateId]
+      if (!details) return prev
+      const next = { ...prev }
+      next[templateId] = {
+        ...details,
+        stages: (details.stages ?? []).filter((s) => s.id !== stageId),
+        contents: (details.contents ?? []).filter((c) => c.stageId !== stageId),
+        taskTemplates: (details.taskTemplates ?? []).filter((t) => t.stageId !== stageId),
+      }
+      return next
+    })
+  }, [])
+
+  const deleteContentItem = useCallback(async ({ contentId } = {}) => {
+    if (!contentId) throw new Error('contentId required')
+    const { error } = await supabase.from('program_template_contents').delete().eq('id', contentId)
+    if (error) throw error
+
+    setTemplateDetailsById((prev) => {
+      const next = { ...prev }
+      for (const templateId of Object.keys(next)) {
+        const details = next[templateId]
+        if (!details) continue
+        if (!(details.contents ?? []).some((c) => c.id === contentId)) continue
+        next[templateId] = { ...details, contents: (details.contents ?? []).filter((c) => c.id !== contentId) }
+      }
+      return next
+    })
+  }, [])
+
+  const deleteTaskTemplate = useCallback(async ({ taskTemplateId } = {}) => {
+    if (!taskTemplateId) throw new Error('taskTemplateId required')
+    const { error } = await supabase.from('program_task_templates').delete().eq('id', taskTemplateId)
+    if (error) throw error
+
+    setTemplateDetailsById((prev) => {
+      const next = { ...prev }
+      for (const templateId of Object.keys(next)) {
+        const details = next[templateId]
+        if (!details) continue
+        if (!(details.taskTemplates ?? []).some((t) => t.id === taskTemplateId)) continue
+        next[templateId] = { ...details, taskTemplates: (details.taskTemplates ?? []).filter((t) => t.id !== taskTemplateId) }
+      }
+      return next
+    })
+  }, [])
+
   const fetchMyInstances = useCallback(async () => {
     if (!currentUser?.id) {
       setInstances([])
@@ -522,6 +577,9 @@ export function ProgramManagementProvider({ children }) {
       addStage,
       addContentItem,
       addTaskTemplate,
+      deleteStage,
+      deleteContentItem,
+      deleteTaskTemplate,
       fetchMyInstances,
       fetchInstanceDetails,
       createInstanceFromTemplate,
@@ -547,6 +605,9 @@ export function ProgramManagementProvider({ children }) {
       addStage,
       addContentItem,
       addTaskTemplate,
+      deleteStage,
+      deleteContentItem,
+      deleteTaskTemplate,
       fetchMyInstances,
       fetchInstanceDetails,
       createInstanceFromTemplate,
