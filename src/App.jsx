@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { roles } from './data/mockData'
+import { roles } from './constants/roles'
 import AdminPanelLayout from './components/layouts/AdminPanelLayout'
 import CoachPanelLayout from './components/layouts/CoachPanelLayout'
 import StudentPanelLayout from './components/layouts/StudentPanelLayout'

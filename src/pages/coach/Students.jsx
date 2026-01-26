@@ -1,26 +1,9 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { BadgeCheck, Percent, User, AlertTriangle } from 'lucide-react'
 import DataTable from '../../components/common/DataTable'
 import ProgressBar from '../../components/common/ProgressBar'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { formatDate } from '../../utils/time'
-
-// Utility to mock/randomize data since we might not have enough history in mockData for everything
-const getMockProgress = (studentId) => {
-    // Deterministic pseudo-random based on ID char codes
-    const seed = studentId.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-    return (seed % 60) + 30 // 30% to 90%
-}
-
-const getMockRisk = (studentId) => {
-    const seed = studentId.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-    const val = seed % 10
-    if (val < 2) return 'High'
-    if (val < 5) return 'Medium'
-    return 'Low'
-}
 
 export default function CoachStudents() {
   const { currentUser } = useAuth()
@@ -29,66 +12,48 @@ export default function CoachStudents() {
   const students = useMemo(() => {
     if (!currentUser?.id || !data) return []
 
-    // 1. Find programs led by this coach
-    const myPrograms = (data.programs ?? []).filter((p) =>
-      p.coachIds.includes(currentUser.id)
-    )
+    const myPrograms = (data.programs ?? []).filter((p) => (p.coachIds ?? []).includes(currentUser.id))
 
-    // 2. Find all students in these programs
     const studentIds = new Set()
-    myPrograms.forEach(p => {
-        p.participantStudentIds.forEach(id => studentIds.add(id))
+    myPrograms.forEach((p) => {
+      ;(p.participantStudentIds ?? []).forEach((id) => studentIds.add(id))
     })
 
-    // 3. Map students to row data
-    const allStudents = (data.users ?? []).filter(u => studentIds.has(u.id))
-    
-    // If we have fewer than 6 students (as requested by prompt), let's duplicate or mock some
-    // purely for visual demonstration if the real data is sparse.
-    // However, mockData.js seems to have 7 students. Let's see if they are assigned to this coach.
-    // Coach 2 (Sana) is usually the main mocked coach.
-    // Let's rely on data first, but fallback to "Extended" data if needed to meet the "at least 6" requirement visually.
-    
-    let processedStudents = allStudents.map(student => {
-        // Find student's program (first match)
-        const program = myPrograms.find(p => p.participantStudentIds.includes(student.id))
-        
-        // Find last session
-        const sessions = (data.coachingSessions ?? [])
-            .filter(s => s.attendeeStudentIds.includes(student.id) && s.status === 'completed')
-            .sort((a, b) => new Date(b.startsAt) - new Date(a.startsAt))
-        
-        const lastSession = sessions.length > 0 ? sessions[0].startsAt : null
+    const allStudents = (data.users ?? []).filter((u) => studentIds.has(u.id))
 
-        return {
-            id: student.id,
-            name: student.name,
-            email: student.email,
-            avatar: student.avatar,
-            programName: program?.name ?? 'Unassigned',
-            progress: getMockProgress(student.id),
-            lastSession,
-            riskLevel: getMockRisk(student.id)
-        }
+    return allStudents.map((student) => {
+      const program = myPrograms.find((p) => (p.participantStudentIds ?? []).includes(student.id))
+
+      const sessions = (data.coachingSessions ?? [])
+        .filter((s) => (s.attendeeStudentIds ?? []).includes(student.id) && s.status === 'completed')
+        .sort((a, b) => new Date(b.startsAt) - new Date(a.startsAt))
+      const lastSession = sessions.length > 0 ? sessions[0].startsAt : null
+
+      const assignedDeliverables = (data.deliverables ?? []).filter((d) =>
+        (d.assignedStudentIds ?? []).includes(student.id)
+      )
+
+      const completedDeliverables = assignedDeliverables.filter((d) =>
+        (d.submissions ?? []).some((s) => String(s.studentId) === String(student.id))
+      )
+
+      const assignedCount = assignedDeliverables.length
+      const completedCount = completedDeliverables.length
+      const progress = assignedCount === 0 ? 0 : Math.round((completedCount / assignedCount) * 100)
+
+      const riskLevel = assignedCount > completedCount ? 'Medium' : 'Low'
+
+      return {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        avatar: student.avatar,
+        programName: program?.name ?? 'Unassigned',
+        progress,
+        lastSession,
+        riskLevel,
+      }
     })
-
-    // Fallback: If we have very few students (e.g. < 4), let's concat some mock ones to satisfy the prompt
-    // strictly for the UI requirement "Use mock data with at least 6 students"
-    if (processedStudents.length < 6) {
-        const NOW = 1706097600000 // Fixed check time to avoid impure render
-        const extraMocks = Array.from({ length: 6 - processedStudents.length }).map((_, i) => ({
-            id: `mock_student_${i}`,
-            name: `Test Student ${i + 1}`,
-            email: `test${i}@example.com`,
-            programName: processedStudents[0]?.programName ?? 'Idea to MVP',
-            progress: 45 + (i * 10),
-            lastSession: new Date(NOW - (i * 86400000 * 3)).toISOString(),
-            riskLevel: i % 3 === 0 ? 'High' : (i % 2 === 0 ? 'Medium' : 'Low')
-        }))
-        processedStudents = [...processedStudents, ...extraMocks]
-    }
-
-    return processedStudents
   }, [currentUser, data])
 
   const columns = [

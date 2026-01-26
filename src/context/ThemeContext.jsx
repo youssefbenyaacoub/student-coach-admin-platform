@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ThemeContext } from './ThemeContextBase'
-import { storage } from '../utils/storage'
-
-const STORAGE_KEY = 'sea_theme_v2'
 
 function getSystemPrefersDark() {
   // Always return false to force light mode preference
@@ -16,19 +13,9 @@ function resolveIsDark(mode) {
 }
 
 export function ThemeProvider({ children }) {
-  const [mode, setMode] = useState(() => {
-    const stored = storage.get(STORAGE_KEY, null)
-    if (stored?.mode === 'light' || stored?.mode === 'dark' || stored?.mode === 'system') {
-      return stored.mode
-    }
-    return 'light'
-  })
+  const [mode, setMode] = useState('light')
 
   const isDark = useMemo(() => resolveIsDark(mode), [mode])
-
-  useEffect(() => {
-    storage.set(STORAGE_KEY, { mode })
-  }, [mode])
 
   useEffect(() => {
     const root = document.documentElement

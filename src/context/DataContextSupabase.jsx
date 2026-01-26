@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { makeId } from '../utils/ids'
-import { storage } from '../utils/storage'
 import { DataContext } from './DataContextBase'
 import {
   ProjectSubmissionType,
@@ -12,55 +11,11 @@ import {
 } from '../models/projects'
 import { TaskStatus, TaskType, normalizeTaskStatus, normalizeTaskType } from '../models/tasks'
 
-const PROJECTS_STORAGE_KEY = 'sea_projects_v1'
-const PROJECTS_MIGRATION_KEY_PREFIX = 'sea_projects_migrated_v1:'
-const NOTIFICATIONS_STORAGE_KEY = 'sea_notifications_v1'
-const TASKS_STORAGE_KEY = 'sea_tasks_v1'
-
-// Local projects fallback is useful for prototyping before DB tables/policies exist,
-// but it can be confusing in production because it creates "phantom" data that
-// doesn't exist in Supabase. Default: enabled in dev only.
-const ALLOW_LOCAL_PROJECTS_FALLBACK =
-  import.meta.env.VITE_ALLOW_LOCAL_PROJECTS_FALLBACK === 'true' || import.meta.env.DEV
-
-// One-time migration from localStorage -> Supabase is also dev-oriented.
-const ALLOW_LOCAL_PROJECTS_MIGRATION =
-  import.meta.env.VITE_MIGRATE_LOCAL_PROJECTS_TO_SUPABASE === 'true' || import.meta.env.DEV
-
-const ensureProjectsStore = () => {
-  const existing = storage.get(PROJECTS_STORAGE_KEY, null)
-  if (existing && Array.isArray(existing.projects) && Array.isArray(existing.projectSubmissions)) {
-    return existing
-  }
-  const seeded = { projects: [], projectSubmissions: [] }
-  storage.set(PROJECTS_STORAGE_KEY, seeded)
-  return seeded
-}
-
-const ensureNotificationsStore = () => {
-  const existing = storage.get(NOTIFICATIONS_STORAGE_KEY, null)
-  if (existing && Array.isArray(existing.notifications)) {
-    return existing
-  }
-  const seeded = { notifications: [] }
-  storage.set(NOTIFICATIONS_STORAGE_KEY, seeded)
-  return seeded
-}
-
-const ensureTasksStore = () => {
-  const existing = storage.get(TASKS_STORAGE_KEY, null)
-  if (existing && Array.isArray(existing.tasks)) {
-    return existing
-  }
-  const seeded = { tasks: [] }
-  storage.set(TASKS_STORAGE_KEY, seeded)
-  return seeded
-}
-
 export function DataProvider({ children }) {
   const [hydrated, setHydrated] = useState(false)
   const [authUserId, setAuthUserId] = useState(null)
   const notificationsChannelRef = useRef(null)
+  const tasksChannelRef = useRef(null)
   const messagesChannelRef = useRef({ inbox: null, outbox: null })
   const presenceChannelRef = useRef(null)
   const projectsChannelRef = useRef(null)
@@ -79,18 +34,6 @@ export function DataProvider({ children }) {
     notifications: [],
     tasks: [],
   })
-
-  const persistProjects = useCallback((projects, projectSubmissions) => {
-    storage.set(PROJECTS_STORAGE_KEY, { projects, projectSubmissions })
-  }, [])
-
-  const persistNotifications = useCallback((notifications) => {
-    storage.set(NOTIFICATIONS_STORAGE_KEY, { notifications })
-  }, [])
-
-  const persistTasks = useCallback((tasks) => {
-    storage.set(TASKS_STORAGE_KEY, { tasks })
-  }, [])
 
   const mapProgram = useCallback((p) => {
     const coachIds = p.program_coaches?.map((pc) => pc.coach_id) || []
@@ -218,6 +161,28 @@ export function DataProvider({ children }) {
     }
   }, [])
 
+  const mapTaskRow = useCallback((t) => {
+    return {
+      id: t.id,
+      projectId: t.project_id,
+      submissionId: t.submission_id ?? null,
+      title: t.title,
+      description: t.description ?? null,
+      taskType: normalizeTaskType(t.task_type),
+      status: normalizeTaskStatus(t.status),
+      deadline: t.deadline ?? null,
+      checklistItems: t.checklist_items ?? null,
+      studentSubmission: t.student_submission ?? null,
+      coachFeedback: t.coach_feedback ?? null,
+      createdBy: t.created_by,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+      submittedAt: t.submitted_at ?? null,
+      reviewedAt: t.reviewed_at ?? null,
+      reviewedBy: t.reviewed_by ?? null,
+    }
+  }, [])
+
   const mapProjectRow = useCallback((p) => {
     return {
       id: p.id,
@@ -270,10 +235,6 @@ export function DataProvider({ children }) {
 
   const fetchAllData = useCallback(async () => {
     try {
-      const projectStore = ensureProjectsStore()
-      const notificationsStore = ensureNotificationsStore()
-      const tasksStore = ensureTasksStore()
-
       // Fetch all data in parallel
       const [
         usersRes,
@@ -319,9 +280,9 @@ export function DataProvider({ children }) {
       const deliverables = (deliverablesRes.data || []).map(mapDeliverable)
       const messages = (messagesRes.data || []).map(mapMessage)
 
-      // 2. Fetch projects & submissions from Supabase if available, else fall back to local store.
-      let projects = ALLOW_LOCAL_PROJECTS_FALLBACK ? (projectStore.projects ?? []) : []
-      let projectSubmissions = ALLOW_LOCAL_PROJECTS_FALLBACK ? (projectStore.projectSubmissions ?? []) : []
+      // 2. Fetch projects & submissions from Supabase.
+      let projects = []
+      let projectSubmissions = []
       try {
         const [projectsRes, submissionsRes] = await Promise.all([
           supabase.from('projects').select('*').order('updated_at', { ascending: false }),
@@ -331,84 +292,15 @@ export function DataProvider({ children }) {
         if (projectsRes.error) throw projectsRes.error
         if (submissionsRes.error) throw submissionsRes.error
 
-        if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
-          // Ensure we don't keep showing stale local projects once Supabase is available.
-          storage.remove(PROJECTS_STORAGE_KEY)
-        }
-
         projects = (projectsRes.data ?? []).map(mapProjectRow)
         projectSubmissions = (submissionsRes.data ?? []).map(mapProjectSubmissionRow)
-
-        // One-time migration: if the tables exist, import any local projects for the current user.
-        // This helps when projects were created earlier before Supabase tables were installed.
-        if (ALLOW_LOCAL_PROJECTS_MIGRATION && authUserId) {
-          const migrationKey = `${PROJECTS_MIGRATION_KEY_PREFIX}${authUserId}`
-          const alreadyMigrated = storage.get(migrationKey, false)
-          if (!alreadyMigrated) {
-            const localProjects = (projectStore.projects ?? []).filter((p) => String(p.studentId) === String(authUserId))
-            const localSubs = projectStore.projectSubmissions ?? []
-            const supabaseProjectIds = new Set((projectsRes.data ?? []).map((p) => p.id))
-
-            const toUpsertProjects = localProjects
-              .filter((p) => !supabaseProjectIds.has(p.id))
-              .map((p) => ({
-                id: p.id,
-                student_id: p.studentId,
-                title: p.title,
-                stage: p.stage,
-                created_at: p.createdAt,
-                updated_at: p.updatedAt,
-              }))
-
-            const toUpsertSubs = localSubs
-              .filter((s) => localProjects.some((p) => p.id === s.projectId))
-              .map((s) => ({
-                id: s.id,
-                project_id: s.projectId,
-                type: s.type,
-                status: s.status,
-                payload: s.payload ?? {},
-                comments: s.comments ?? [],
-                reviewer_id: s.reviewerId ?? null,
-                reviewed_at: s.reviewedAt ?? null,
-                created_at: s.createdAt,
-                updated_at: s.updatedAt,
-              }))
-
-            if (toUpsertProjects.length > 0 || toUpsertSubs.length > 0) {
-              try {
-                if (toUpsertProjects.length > 0) {
-                  const { error: upErr } = await supabase.from('projects').upsert(toUpsertProjects, { onConflict: 'id' })
-                  if (upErr) console.warn('Local->Supabase projects migration failed:', upErr)
-                }
-
-                if (toUpsertSubs.length > 0) {
-                  const { error: subErr } = await supabase
-                    .from('project_submissions')
-                    .upsert(toUpsertSubs, { onConflict: 'id' })
-                  if (subErr) console.warn('Local->Supabase submissions migration failed:', subErr)
-                }
-              } catch (mErr) {
-                console.warn('Local->Supabase migration error:', mErr)
-              }
-            }
-
-            storage.set(migrationKey, true)
-          }
-        }
       } catch (err) {
-        // If local fallback is enabled (dev/prototype), tolerate Supabase being incomplete.
-        // Otherwise, keep projects empty so the UI doesn't show data that isn't in Supabase.
-        if (ALLOW_LOCAL_PROJECTS_FALLBACK) {
-          console.warn('Could not fetch projects from Supabase; using local store.', err)
-        } else {
-          console.error('Could not fetch projects from Supabase (local fallback disabled):', err)
-          projects = []
-          projectSubmissions = []
-        }
+        console.error('Could not fetch projects from Supabase:', err)
+        projects = []
+        projectSubmissions = []
       }
 
-      let notifications = notificationsStore.notifications ?? []
+      let notifications = []
       try {
         const { data: ntfData, error: ntfError } = await supabase
           .from('notifications')
@@ -417,10 +309,23 @@ export function DataProvider({ children }) {
 
         if (!ntfError && Array.isArray(ntfData)) {
           notifications = ntfData.map(mapNotification)
-          persistNotifications(notifications)
         }
       } catch {
         // notifications table may not exist yet; ignore
+      }
+
+      let tasks = []
+      try {
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('tasks')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (!tasksError && Array.isArray(tasksData)) {
+          tasks = tasksData.map(mapTaskRow)
+        }
+      } catch (err) {
+        console.warn('Could not fetch tasks from Supabase:', err)
       }
 
       setData({
@@ -434,7 +339,7 @@ export function DataProvider({ children }) {
         projects,
         projectSubmissions,
         notifications,
-        tasks: tasksStore?.tasks ?? [],
+        tasks,
       })
 
       setHydrated(true)
@@ -442,7 +347,7 @@ export function DataProvider({ children }) {
       console.error('Error fetching data:', error)
       setHydrated(true)
     }
-  }, [authUserId, mapApplication, mapCoachingSession, mapDeliverable, mapMessage, mapMessageDeletion, mapNotification, mapProgram, mapProjectRow, mapProjectSubmissionRow, persistNotifications])
+  }, [mapApplication, mapCoachingSession, mapDeliverable, mapMessage, mapMessageDeletion, mapNotification, mapProgram, mapProjectRow, mapProjectSubmissionRow, mapTaskRow])
 
   const refreshProjects = useCallback(async () => {
     try {
@@ -557,6 +462,56 @@ export function DataProvider({ children }) {
       }
     }
   }, [authUserId, mapProjectRow, mapProjectSubmissionRow])
+
+  // Realtime: tasks
+  useEffect(() => {
+    if (tasksChannelRef.current) {
+      supabase.removeChannel(tasksChannelRef.current)
+      tasksChannelRef.current = null
+    }
+
+    if (!authUserId) return
+
+    const channel = supabase
+      .channel('realtime-tasks')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        (payload) => {
+          setData((prev) => {
+            const current = prev.tasks ?? []
+            const eventType = payload.eventType
+
+            if (eventType === 'DELETE') {
+              const id = payload.old?.id
+              return { ...prev, tasks: current.filter((t) => t.id !== id) }
+            }
+
+            const mapped = payload.new ? mapTaskRow(payload.new) : null
+            if (!mapped) return prev
+
+            const exists = current.some((t) => t.id === mapped.id)
+            if (eventType === 'INSERT' && !exists) {
+              return { ...prev, tasks: [mapped, ...current] }
+            }
+            if (eventType === 'UPDATE' && exists) {
+              return { ...prev, tasks: current.map((t) => (t.id === mapped.id ? mapped : t)) }
+            }
+            if (!exists) {
+              return { ...prev, tasks: [mapped, ...current] }
+            }
+            return prev
+          })
+        },
+      )
+      .subscribe()
+
+    tasksChannelRef.current = channel
+    return () => {
+      supabase.removeChannel(channel)
+      if (tasksChannelRef.current === channel) tasksChannelRef.current = null
+    }
+  }, [authUserId, mapTaskRow])
 
   // Track Supabase auth user (DataProvider lives outside AuthProvider)
   useEffect(() => {
@@ -720,15 +675,12 @@ export function DataProvider({ children }) {
 
       if (error) return { success: false, error }
       const mapped = (ntfData ?? []).map(mapNotification)
-      setData((prev) => {
-        persistNotifications(mapped)
-        return { ...prev, notifications: mapped }
-      })
+      setData((prev) => ({ ...prev, notifications: mapped }))
       return { success: true }
     } catch (e) {
       return { success: false, error: e }
     }
-  }, [mapNotification, persistNotifications])
+  }, [mapNotification])
 
   // Realtime notifications (INSERT/UPDATE) for the logged-in user.
   // Requires: notifications table exists + added to supabase_realtime publication.
@@ -760,9 +712,7 @@ export function DataProvider({ children }) {
           setData((prev) => {
             const existing = prev.notifications ?? []
             if (existing.some((n) => n.id === mapped.id)) return prev
-            const next = [mapped, ...existing]
-            persistNotifications(next)
-            return { ...prev, notifications: next }
+            return { ...prev, notifications: [mapped, ...existing] }
           })
         },
       )
@@ -780,7 +730,6 @@ export function DataProvider({ children }) {
           setData((prev) => {
             const existing = prev.notifications ?? []
             const next = existing.map((n) => (n.id === mapped.id ? { ...n, ...mapped } : n))
-            persistNotifications(next)
             return { ...prev, notifications: next }
           })
         },
@@ -806,7 +755,7 @@ export function DataProvider({ children }) {
         notificationsChannelRef.current = null
       }
     }
-  }, [authUserId, mapNotification, persistNotifications, refreshNotifications])
+  }, [authUserId, mapNotification, refreshNotifications])
 
   // ===================
   // MESSAGES (Realtime)
@@ -903,69 +852,28 @@ export function DataProvider({ children }) {
     }
   }, [authUserId, mapMessage])
 
-  const createNotification = useCallback(async ({ userId, title, message, type, linkUrl, meta, allowLocalFallback = true } = {}) => {
+  const createNotification = useCallback(async ({ userId, title, message, type, linkUrl, meta } = {}) => {
     if (!userId) throw new Error('Missing userId')
 
-    // Prefer DB-backed notifications when available (cross-user/device)
-    try {
-      const { data: inserted, error } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: userId,
-          type: type ?? 'info',
-          title: title ?? 'Notification',
-          message: message ?? null,
-          link_url: linkUrl ?? null,
-          meta: meta ?? null,
-        })
-        .select('*')
-        .single()
+    const { data: inserted, error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        type: type ?? 'info',
+        title: title ?? 'Notification',
+        message: message ?? null,
+        link_url: linkUrl ?? null,
+        meta: meta ?? null,
+      })
+      .select('*')
+      .single()
 
-      if (error) {
-        if (!allowLocalFallback) {
-          throw error
-        }
-      }
+    if (error) throw error
 
-      if (!error && inserted) {
-        const mapped = mapNotification(inserted)
-        setData((prev) => {
-          const next = [mapped, ...(prev.notifications ?? [])]
-          persistNotifications(next)
-          return { ...prev, notifications: next }
-        })
-        return mapped
-      }
-    } catch {
-      // fall back to local storage
-    }
-
-    if (!allowLocalFallback) {
-      // Cross-user notifications cannot work without DB insert; don't silently pretend.
-      throw new Error('Failed to create notification in database. Check notifications table + RLS policies.')
-    }
-
-    const now = new Date().toISOString()
-    const notification = {
-      id: makeId('ntf'),
-      userId,
-      type: type ?? 'info',
-      title: title ?? 'Notification',
-      message: message ?? null,
-      linkUrl: linkUrl ?? null,
-      meta: meta ?? null,
-      createdAt: now,
-      readAt: null,
-    }
-
-    setData((prev) => {
-      const next = [notification, ...(prev.notifications ?? [])]
-      persistNotifications(next)
-      return { ...prev, notifications: next }
-    })
-
-    return notification
-  }, [mapNotification, persistNotifications])
+    const mapped = mapNotification(inserted)
+    setData((prev) => ({ ...prev, notifications: [mapped, ...(prev.notifications ?? [])] }))
+    return mapped
+  }, [mapNotification])
 
   const markNotificationRead = useCallback(async ({ notificationId } = {}) => {
     if (!notificationId) throw new Error('Missing notificationId')
@@ -984,11 +892,10 @@ export function DataProvider({ children }) {
       const next = (prev.notifications ?? []).map((n) =>
         n.id === notificationId ? { ...n, readAt: n.readAt ?? now } : n,
       )
-      persistNotifications(next)
       return { ...prev, notifications: next }
     })
     return { success: true }
-  }, [persistNotifications])
+  }, [])
 
   const markAllNotificationsRead = useCallback(async ({ userId } = {}) => {
     if (!userId) throw new Error('Missing userId')
@@ -1008,11 +915,10 @@ export function DataProvider({ children }) {
       const next = (prev.notifications ?? []).map((n) =>
         n.userId === userId ? { ...n, readAt: n.readAt ?? now } : n,
       )
-      persistNotifications(next)
       return { ...prev, notifications: next }
     })
     return { success: true }
-  }, [persistNotifications])
+  }, [])
 
   const getUserById = useCallback((id) => {
     return data.users.find((u) => u.id === id) ?? null
@@ -1322,35 +1228,18 @@ export function DataProvider({ children }) {
 
       return { success: true, project: mappedProject, submission: mappedSubmission }
     } catch (err) {
-      if (!isMissingTableError(err)) {
-        console.error('Error creating project in Supabase:', err)
-        return { success: false, error: err }
+      let supabaseHost = ''
+      try {
+        supabaseHost = new URL(import.meta.env.VITE_SUPABASE_URL).host
+      } catch {
+        supabaseHost = ''
       }
 
-      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
-        let supabaseHost = ''
-        try {
-          supabaseHost = new URL(import.meta.env.VITE_SUPABASE_URL).host
-        } catch {
-          supabaseHost = ''
-        }
-
-        const msg = `Supabase projects tables are not available (or not reachable) for this app.${supabaseHost ? ` Connected Supabase: ${supabaseHost}.` : ''} Ensure you ran supabase-projects.sql in the same Supabase project and that RLS policies allow the student to insert/select projects.`
-        return { success: false, errors: { form: msg }, error: err }
-      }
-
-      console.warn('Supabase projects tables not found; saving project locally. Run supabase-projects.sql in the same Supabase project your app is configured to use.', err)
-
-      // Local fallback
-      setData((prev) => {
-        const nextProjects = [project, ...(prev.projects ?? [])]
-        const nextSubs = [...(prev.projectSubmissions ?? []), ideaSubmission]
-        persistProjects(nextProjects, nextSubs)
-        return { ...prev, projects: nextProjects, projectSubmissions: nextSubs }
-      })
-      return { success: true, project, submission: ideaSubmission, localFallback: true }
+      const msg = `Failed to create project in Supabase.${supabaseHost ? ` Connected Supabase: ${supabaseHost}.` : ''} Ensure you ran supabase-projects.sql in the same Supabase project and that RLS policies allow inserts/selects.`
+      console.error(msg, err)
+      return { success: false, errors: { form: msg }, error: err }
     }
-  }, [isMissingTableError, mapProjectRow, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [mapProjectRow, mapProjectSubmissionRow, refreshProjects])
 
   const addProjectSubmission = useCallback(async ({ projectId, type, payload }) => {
     const project = getProjectById(projectId)
@@ -1420,33 +1309,10 @@ export function DataProvider({ children }) {
 
       return { success: true, submission: mappedSubmission }
     } catch (err) {
-      if (!isMissingTableError(err)) {
-        console.error('Error adding project submission in Supabase:', err)
-        return { success: false, error: err }
-      }
-
-      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
-        return {
-          success: false,
-          error: 'Project submissions table is not available in Supabase (or access is blocked).',
-        }
-      }
-
-      console.warn('Supabase project_submissions table not found; saving submission locally.', err)
-
-      // Local fallback
-      setData((prev) => {
-        const nextSubs = [...(prev.projectSubmissions ?? []), submission]
-        const nextProjects = (prev.projects ?? []).map((p) =>
-          p.id === projectId ? { ...p, updatedAt: now } : p,
-        )
-        persistProjects(nextProjects, nextSubs)
-        return { ...prev, projects: nextProjects, projectSubmissions: nextSubs }
-      })
-
-      return { success: true, submission, localFallback: true }
+      console.error('Error adding project submission in Supabase:', err)
+      return { success: false, error: err }
     }
-  }, [getProjectById, isMissingTableError, listProjectSubmissions, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [getProjectById, listProjectSubmissions, mapProjectSubmissionRow, refreshProjects])
 
   const addProjectSubmissionComment = useCallback(async ({ submissionId, authorId, text }) => {
     const content = String(text ?? '').trim()
@@ -1526,30 +1392,10 @@ export function DataProvider({ children }) {
 
       return { success: true, comment }
     } catch (err) {
-      if (!isMissingTableError(err)) {
-        console.error('Error adding submission comment in Supabase:', err)
-        return { success: false, error: err }
-      }
-
-      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
-        return { success: false, error: 'Cannot save comment: project_submissions table unavailable in Supabase.' }
-      }
-
-      console.warn('Supabase project_submissions table not found; saving comment locally.', err)
-
-      // Local fallback
-      setData((prev) => {
-        const nextSubs = (prev.projectSubmissions ?? []).map((s) => {
-          if (s.id !== submissionId) return s
-          return { ...s, comments: [...(s.comments ?? []), comment], updatedAt: now }
-        })
-        persistProjects(prev.projects ?? [], nextSubs)
-        return { ...prev, projectSubmissions: nextSubs }
-      })
-
-      return { success: true, comment, localFallback: true }
+      console.error('Error adding submission comment in Supabase:', err)
+      return { success: false, error: err }
     }
-  }, [createNotification, data.projects, data.projectSubmissions, data.users, isMissingTableError, listStaffUserIds, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [createNotification, data.projects, data.projectSubmissions, data.users, listStaffUserIds, mapProjectSubmissionRow, refreshProjects])
 
   const setProjectSubmissionStatus = useCallback(async ({ submissionId, status, reviewerId }) => {
     const nextStatus = Object.values(SubmissionStatus).includes(status) ? status : SubmissionStatus.pending
@@ -1583,36 +1429,12 @@ export function DataProvider({ children }) {
 
       refreshProjects().catch(() => {})
     } catch (err) {
-      if (!isMissingTableError(err)) {
-        console.error('Error setting submission status in Supabase:', err)
-        return { success: false, error: err }
-      }
-
-      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
-        return { success: false, error: 'Cannot update status: project_submissions table unavailable in Supabase.' }
-      }
-
-      console.warn('Supabase project_submissions table not found; saving status locally.', err)
-
-      // Local fallback
-      setData((prev) => {
-        const nextSubs = (prev.projectSubmissions ?? []).map((s) => {
-          if (s.id !== submissionId) return s
-          return {
-            ...s,
-            status: nextStatus,
-            reviewerId: reviewerId ?? s.reviewerId,
-            reviewedAt,
-            updatedAt: now,
-          }
-        })
-        persistProjects(prev.projects ?? [], nextSubs)
-        return { ...prev, projectSubmissions: nextSubs }
-      })
+      console.error('Error setting submission status in Supabase:', err)
+      return { success: false, error: err }
     }
 
     return { success: true }
-  }, [data.projectSubmissions, isMissingTableError, mapProjectSubmissionRow, persistProjects, refreshProjects])
+  }, [data.projectSubmissions, mapProjectSubmissionRow, refreshProjects])
 
   const setProjectStage = useCallback(async ({ projectId, stage }) => {
     const nextStage = normalizeStage(stage)
@@ -1661,28 +1483,10 @@ export function DataProvider({ children }) {
 
       return { success: true }
     } catch (err) {
-      if (!isMissingTableError(err)) {
-        console.error('Error setting project stage in Supabase:', err)
-        return { success: false, error: err }
-      }
-
-      if (!ALLOW_LOCAL_PROJECTS_FALLBACK) {
-        return { success: false, error: 'Cannot update stage: projects table unavailable in Supabase.' }
-      }
-
-      console.warn('Supabase projects table not found; saving stage locally.', err)
-
-      // Local fallback
-      setData((prev) => {
-        const nextProjects = (prev.projects ?? []).map((p) =>
-          p.id === projectId ? { ...p, stage: nextStage, updatedAt: now } : p,
-        )
-        persistProjects(nextProjects, prev.projectSubmissions ?? [])
-        return { ...prev, projects: nextProjects }
-      })
-      return { success: true, localFallback: true }
+      console.error('Error setting project stage in Supabase:', err)
+      return { success: false, error: err }
     }
-  }, [authUserId, createNotification, data.users, isMissingTableError, mapProjectRow, persistProjects, refreshProjects])
+  }, [authUserId, createNotification, data.users, mapProjectRow, refreshProjects])
 
   // ===================
   // MUTATION FUNCTIONS
@@ -2067,7 +1871,7 @@ export function DataProvider({ children }) {
   }, [presence])
 
   // ===================
-  // TASKS (Local-only)
+  // TASKS (Supabase)
   // ===================
 
   const getTaskById = useCallback((taskId) => {
@@ -2116,7 +1920,6 @@ export function DataProvider({ children }) {
     const project = (data.projects ?? []).find((p) => p.id === projectId) ?? null
     if (!project) throw new Error('Project not found')
 
-    const now = new Date().toISOString()
     const normalizedType = normalizeTaskType(taskType)
 
     const normalizedChecklist =
@@ -2127,35 +1930,42 @@ export function DataProvider({ children }) {
           })).filter((it) => it.text)
         : null
 
-    const task = {
-      id: makeId('tsk'),
-      projectId,
-      submissionId: submissionId ?? null,
-      title: String(title).trim(),
-      description: String(description ?? '').trim() || null,
-      taskType: normalizedType,
-      status: TaskStatus.pending,
-      deadline: deadline ?? null,
-      checklistItems: normalizedChecklist,
-      createdBy: authUserId,
-      createdAt: now,
-      updatedAt: now,
-      submittedAt: null,
-      studentSubmission: null,
-      coachFeedback: null,
-      reviewedAt: null,
-      reviewedBy: null,
-      studentId: project.studentId,
-    }
+    const id = makeId('tsk')
 
+    const { data: inserted, error } = await supabase
+      .from('tasks')
+      .insert({
+        id,
+        project_id: projectId,
+        submission_id: submissionId ?? null,
+        student_id: project.studentId,
+        title: String(title).trim(),
+        description: String(description ?? '').trim() || null,
+        task_type: normalizedType,
+        status: TaskStatus.pending,
+        deadline: deadline ?? null,
+        checklist_items: normalizedChecklist,
+        created_by: authUserId,
+        student_submission: null,
+        submitted_at: null,
+        coach_feedback: null,
+        reviewed_at: null,
+        reviewed_by: null,
+      })
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    const mapped = mapTaskRow(inserted)
     setData((prev) => {
-      const next = [task, ...(prev.tasks ?? [])]
-      persistTasks(next)
-      return { ...prev, tasks: next }
+      const existing = prev.tasks ?? []
+      if (existing.some((t) => t.id === mapped.id)) return prev
+      return { ...prev, tasks: [mapped, ...existing] }
     })
 
-    return task
-  }, [authUserId, data.projects, data.users, persistTasks])
+    return mapped
+  }, [authUserId, data.projects, data.users, mapTaskRow])
 
   const submitTask = useCallback(async ({ taskId, submission } = {}) => {
     if (!authUserId) throw new Error('Not authenticated')
@@ -2169,23 +1979,32 @@ export function DataProvider({ children }) {
     if (String(project.studentId) !== String(authUserId)) throw new Error('Only the project student can submit this task')
 
     const now = new Date().toISOString()
-    setData((prev) => {
-      const next = (prev.tasks ?? []).map((t) => {
-        if (t.id !== taskId) return t
-        return {
-          ...t,
-          status: TaskStatus.submitted,
-          studentSubmission: submission ?? null,
-          submittedAt: now,
-          updatedAt: now,
-        }
+
+    const { data: updated, error } = await supabase
+      .from('tasks')
+      .update({
+        status: TaskStatus.submitted,
+        student_submission: submission ?? null,
+        submitted_at: now,
       })
-      persistTasks(next)
-      return { ...prev, tasks: next }
+      .eq('id', taskId)
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    const mapped = mapTaskRow(updated)
+    setData((prev) => {
+      const current = prev.tasks ?? []
+      const exists = current.some((t) => t.id === mapped.id)
+      return {
+        ...prev,
+        tasks: exists ? current.map((t) => (t.id === mapped.id ? mapped : t)) : [mapped, ...current],
+      }
     })
 
     return { success: true }
-  }, [authUserId, data.projects, data.tasks, persistTasks])
+  }, [authUserId, data.projects, data.tasks, mapTaskRow])
 
   const reviewTask = useCallback(async ({ taskId, status, feedback } = {}) => {
     if (!authUserId) throw new Error('Not authenticated')
@@ -2197,24 +2016,32 @@ export function DataProvider({ children }) {
     const nextStatus = normalizeTaskStatus(status)
     const now = new Date().toISOString()
 
-    setData((prev) => {
-      const next = (prev.tasks ?? []).map((t) => {
-        if (t.id !== taskId) return t
-        return {
-          ...t,
-          status: nextStatus,
-          coachFeedback: String(feedback ?? '').trim() || null,
-          reviewedAt: now,
-          reviewedBy: authUserId,
-          updatedAt: now,
-        }
+    const { data: updated, error } = await supabase
+      .from('tasks')
+      .update({
+        status: nextStatus,
+        coach_feedback: String(feedback ?? '').trim() || null,
+        reviewed_at: now,
+        reviewed_by: authUserId,
       })
-      persistTasks(next)
-      return { ...prev, tasks: next }
+      .eq('id', taskId)
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    const mapped = mapTaskRow(updated)
+    setData((prev) => {
+      const current = prev.tasks ?? []
+      const exists = current.some((t) => t.id === mapped.id)
+      return {
+        ...prev,
+        tasks: exists ? current.map((t) => (t.id === mapped.id ? mapped : t)) : [mapped, ...current],
+      }
     })
 
     return { success: true }
-  }, [authUserId, data.users, persistTasks])
+  }, [authUserId, data.users, mapTaskRow])
 
   const reset = useCallback(async () => {
     // This would require careful consideration in production
