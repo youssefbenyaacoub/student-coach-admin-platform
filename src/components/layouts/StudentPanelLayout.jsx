@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, User, Home, ClipboardList, Target, MessageCircle, FolderKanban } from 'lucide-react'
+import { LogOut, User, Home, ClipboardList, Target, MessageCircle, FolderKanban, BarChart3 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
@@ -33,6 +33,7 @@ export default function StudentPanelLayout() {
     { label: 'Projects', to: '/student/projects', icon: FolderKanban },
     { label: 'My Tasks', to: '/student/tasks', icon: Target },
     { label: 'My Progress', to: '/student/programs', icon: ClipboardList },
+    { label: 'Analytics', to: '/student/analytics', icon: BarChart3 },
     { label: 'Messages', to: '/student/messages', icon: MessageCircle },
     { label: 'Profile', to: '/student/profile', icon: User },
   ]

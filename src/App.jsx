@@ -26,6 +26,7 @@ import StudentApplications from './pages/student/Applications'
 import StudentDeliverables from './pages/student/Deliverables'
 import StudentTasks from './pages/student/Tasks'
 import StudentSessions from './pages/student/Sessions'
+import StudentAnalytics from './pages/student/Analytics'
 import Messages from './components/common/Messages'
 import Profile from './components/common/Profile'
 import Unauthorized from './pages/Unauthorized'
@@ -110,6 +111,7 @@ export default function App() {
         <Route path="projects" element={<StudentProjects />} />
         <Route path="tasks" element={<StudentTasks />} />
         <Route path="programs" element={<StudentPrograms />} />
+        <Route path="analytics" element={<StudentAnalytics />} />
         <Route path="applications" element={<StudentApplications />} />
         <Route path="deliverables" element={<StudentDeliverables />} />
         <Route path="sessions" element={<StudentSessions />} />
