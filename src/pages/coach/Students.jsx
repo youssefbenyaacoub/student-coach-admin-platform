@@ -16,7 +16,7 @@ export default function CoachStudents() {
 
     const studentIds = new Set()
     myPrograms.forEach((p) => {
-      ;(p.participantStudentIds ?? []).forEach((id) => studentIds.add(id))
+      ; (p.participantStudentIds ?? []).forEach((id) => studentIds.add(id))
     })
 
     const allStudents = (data.users ?? []).filter((u) => studentIds.has(u.id))
@@ -83,14 +83,14 @@ export default function CoachStudents() {
       ),
     },
     {
-        key: 'progress',
-        header: 'Progress',
-        accessor: (row) => row.progress.toString(),
-        render: (row) => (
-            <div className="w-[120px]">
-                <ProgressBar value={row.progress} />
-            </div>
-        )
+      key: 'progress',
+      header: 'Progress',
+      accessor: (row) => row.progress.toString(),
+      render: (row) => (
+        <div className="w-[120px]">
+          <ProgressBar value={row.progress} />
+        </div>
+      )
     },
     {
       key: 'lastSession',
@@ -98,11 +98,11 @@ export default function CoachStudents() {
       accessor: (row) => row.lastSession ?? '',
       render: (row) => (
         <div className="text-sm">
-            {row.lastSession ? (
-                <span className="text-foreground">{formatDate(row.lastSession)}</span>
-            ) : (
-                <span className="text-muted-foreground italic">No sessions yet</span>
-            )}
+          {row.lastSession ? (
+            <span className="text-foreground">{formatDate(row.lastSession)}</span>
+          ) : (
+            <span className="text-muted-foreground italic">No sessions yet</span>
+          )}
         </div>
       ),
     },
@@ -116,21 +116,29 @@ export default function CoachStudents() {
         if (row.riskLevel === 'Medium') colorClass = 'bg-warning-50 text-warning-700 border-warning-200'
 
         return (
-            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${colorClass}`}>
-                {row.riskLevel}
-            </span>
+          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${colorClass}`}>
+            {row.riskLevel}
+          </span>
         )
       }
     },
     {
-        key: 'actions',
-        header: '',
-        accessor: () => '',
-        render: () => (
-            <button className="text-sm font-medium text-primary hover:underline">
-                View Details
-            </button>
-        )
+      key: 'actions',
+      header: '',
+      accessor: () => '',
+      render: (row) => (
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('sea:open-chat', { detail: { peerId: row.id } }))}
+            className="text-sm font-medium text-coach-primary hover:underline flex items-center gap-1"
+          >
+            Message
+          </button>
+          <button className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors">
+            View Details
+          </button>
+        </div>
+      )
     }
   ]
 

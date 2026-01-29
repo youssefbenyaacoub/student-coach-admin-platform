@@ -215,8 +215,8 @@ export default function StudentDashboard() {
                                 return (
                                     <div key={task.id} className="group relative flex items-center gap-5 rounded-2xl bg-white p-5 shadow-sm border border-slate-100 transition-all hover:shadow-lg hover:border-student-primary/30 hover:-translate-y-0.5 px-6">
                                         <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner ${task.type === 'session'
-                                                ? 'bg-blue-50 text-blue-600'
-                                                : 'bg-emerald-50 text-emerald-600'
+                                            ? 'bg-blue-50 text-blue-600'
+                                            : 'bg-emerald-50 text-emerald-600'
                                             }`}>
                                             <Icon className="h-7 w-7" />
                                         </div>
@@ -303,9 +303,14 @@ export default function StudentDashboard() {
                         )}
 
                         <button
-                            // In a real app, this would open the specific chat thread
-                            onClick={() => {/* Trigger global chat open if possible, or Nav */ }}
-                            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-indigo-600 transition-all hover:bg-indigo-50 active:scale-95"
+                            onClick={() => {
+                                if (context.coach?.id) {
+                                    window.dispatchEvent(new CustomEvent('sea:open-chat', { detail: { peerId: context.coach.id } }))
+                                } else {
+                                    window.dispatchEvent(new CustomEvent('sea:open-chat', {}))
+                                }
+                            }}
+                            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-student-primary transition-all hover:bg-blue-50 active:scale-95"
                         >
                             <MessageCircle className="h-5 w-5" />
                             Message My Coach
