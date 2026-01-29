@@ -37,7 +37,11 @@ export function DataProvider({ children }) {
 
   const mapProgram = useCallback((p) => {
     const coachIds = p.program_coaches?.map((pc) => pc.coach_id) || []
-    const participantStudentIds = p.program_participants?.map((pp) => pp.student_id) || []
+    const participants = p.program_participants?.map((pp) => ({
+      studentId: pp.student_id,
+      coachId: pp.coach_id,
+    })) || []
+    const participantStudentIds = participants.map(p => p.studentId)
     return {
       id: p.id,
       name: p.name,
@@ -50,6 +54,7 @@ export function DataProvider({ children }) {
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       coachIds,
+      participants,
       participantStudentIds,
     }
   }, [])
@@ -248,7 +253,7 @@ export function DataProvider({ children }) {
         supabase.from('programs').select(`
           *,
           program_coaches(coach_id),
-          program_participants(student_id)
+          program_participants(student_id, coach_id)
         `),
         supabase.from('applications').select('*'),
         supabase.from('coaching_sessions').select(`
@@ -375,10 +380,10 @@ export function DataProvider({ children }) {
   // Initial data fetch & Refetch on Auth Change
   useEffect(() => {
     if (authUserId) {
-        fetchAllData()
+      fetchAllData()
     } else {
-        // Optional: clear data on logout to be safe
-        // setData(prev => ({ ...prev, messages: [], deliverables: [], users: [] }))
+      // Optional: clear data on logout to be safe
+      // setData(prev => ({ ...prev, messages: [], deliverables: [], users: [] }))
     }
   }, [fetchAllData, authUserId])
 
@@ -516,7 +521,7 @@ export function DataProvider({ children }) {
                 setData((prev) => ({ ...prev, tasks: tasksData.map(mapTaskRow) }))
               }
             })
-            .catch(() => {})
+            .catch(() => { })
         }
 
         if (status === 'CHANNEL_ERROR') {
@@ -566,10 +571,10 @@ export function DataProvider({ children }) {
       if (error) return { success: false, error }
 
       const next = {}
-      ;(rows ?? []).forEach((r) => {
-        const mapped = mapPresenceRow(r)
-        next[mapped.userId] = mapped
-      })
+        ; (rows ?? []).forEach((r) => {
+          const mapped = mapPresenceRow(r)
+          next[mapped.userId] = mapped
+        })
       setPresence(next)
       return { success: true }
     } catch (e) {
@@ -759,7 +764,7 @@ export function DataProvider({ children }) {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           // Ensure we have a clean baseline after subscription.
-          refreshNotifications().catch(() => {})
+          refreshNotifications().catch(() => { })
         }
         if (status === 'CHANNEL_ERROR') {
           console.warn('[Notifications] Realtime channel error. Ensure notifications is in supabase_realtime publication and policies allow SELECT.', {
@@ -829,7 +834,7 @@ export function DataProvider({ children }) {
       if (typeof window !== 'undefined') {
         const eventType = payload?.eventType
         const isIncoming = row?.recipient_id === authUserId && row?.sender_id && row?.sender_id !== authUserId
-        
+
         if (eventType === 'INSERT' && isIncoming) {
           console.log('[DataContext] Dispatching sea:new-message', mapped)
           window.dispatchEvent(
@@ -1245,7 +1250,7 @@ export function DataProvider({ children }) {
       })
 
       // Keep lists consistent for admin/coach views.
-      refreshProjects().catch(() => {})
+      refreshProjects().catch(() => { })
 
       return { success: true, project: mappedProject, submission: mappedSubmission }
     } catch (err) {
@@ -1326,7 +1331,7 @@ export function DataProvider({ children }) {
         return { ...prev, projects: nextProjects, projectSubmissions: nextSubs }
       })
 
-      refreshProjects().catch(() => {})
+      refreshProjects().catch(() => { })
 
       return { success: true, submission: mappedSubmission }
     } catch (err) {
@@ -1360,7 +1365,7 @@ export function DataProvider({ children }) {
         return { ...prev, projectSubmissions: nextSubs }
       })
 
-      refreshProjects().catch(() => {})
+      refreshProjects().catch(() => { })
 
       // Notify the other side about the new comment
       try {
@@ -1448,7 +1453,7 @@ export function DataProvider({ children }) {
         return { ...prev, projectSubmissions: nextSubs }
       })
 
-      refreshProjects().catch(() => {})
+      refreshProjects().catch(() => { })
     } catch (err) {
       console.error('Error setting submission status in Supabase:', err)
       return { success: false, error: err }
@@ -1477,7 +1482,7 @@ export function DataProvider({ children }) {
         return { ...prev, projects: nextProjects }
       })
 
-      refreshProjects().catch(() => {})
+      refreshProjects().catch(() => { })
 
       // Staff action: notify student that stage changed
       try {
@@ -1822,6 +1827,46 @@ export function DataProvider({ children }) {
     }
   }, [fetchAllData])
 
+  const matchStudentCoach = useCallback(async ({ programId, studentId, coachId }) => {
+    try {
+      const { error } = await supabase
+        .from('program_participants')
+        .update({ coach_id: coachId })
+        .eq('program_id', programId)
+        .eq('student_id', studentId)
+
+      if (error) throw error
+
+      // Notify them
+      try {
+        await Promise.all([
+          createNotification({
+            userId: studentId,
+            type: 'info',
+            title: 'Coach Assigned',
+            message: 'A coach has been assigned to you.',
+            linkUrl: '/student/dashboard'
+          }),
+          createNotification({
+            userId: coachId,
+            type: 'info',
+            title: 'New Student Assigned',
+            message: 'A student has been assigned to you for coaching.',
+            linkUrl: '/coach/dashboard'
+          })
+        ])
+      } catch (err) {
+        console.warn('Notifications failed after matching:', err)
+      }
+
+      await fetchAllData()
+      return { success: true }
+    } catch (error) {
+      console.error('Error matching student-coach:', error)
+      throw error
+    }
+  }, [fetchAllData, createNotification])
+
   const sendMessage = useCallback(async ({ senderId, receiverId, content, subject = 'New Message' }) => {
     try {
       const { data: newMessage, error } = await supabase
@@ -1946,9 +1991,9 @@ export function DataProvider({ children }) {
     const normalizedChecklist =
       normalizedType === TaskType.checklist
         ? (Array.isArray(checklistItems) ? checklistItems : []).map((it) => ({
-            id: it?.id ?? makeId('chk'),
-            text: String(it?.text ?? '').trim(),
-          })).filter((it) => it.text)
+          id: it?.id ?? makeId('chk'),
+          text: String(it?.text ?? '').trim(),
+        })).filter((it) => it.text)
         : null
 
     const id = makeId('tsk')
@@ -2113,6 +2158,7 @@ export function DataProvider({ children }) {
       createApplication,
       assignCoachToProgram,
       assignStudentToProgram,
+      matchStudentCoach,
       // Tasks
       getTaskById,
       listTasks,
@@ -2160,6 +2206,7 @@ export function DataProvider({ children }) {
       createApplication,
       assignCoachToProgram,
       assignStudentToProgram,
+      matchStudentCoach,
       getTaskById,
       listTasks,
       listTasksGroupedByProject,

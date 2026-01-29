@@ -11,6 +11,7 @@ import AdminUsers from './pages/admin/Users'
 import AdminApplications from './pages/admin/Applications'
 import Placeholder from './pages/admin/Placeholder'
 import AdminProjects from './pages/admin/Projects'
+import AdminMatching from './pages/admin/Matching'
 import CoachDashboard from './pages/coach/Dashboard'
 import CoachProjects from './pages/coach/Projects'
 import CoachPrograms from './pages/coach/Programs'
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="programs" element={<AdminPrograms />} />
         <Route path="applications" element={<AdminApplications />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="matching" element={<AdminMatching />} />
         <Route
           path="sessions"
           element={<Placeholder title="Sessions overview" message="Coming next." />}
