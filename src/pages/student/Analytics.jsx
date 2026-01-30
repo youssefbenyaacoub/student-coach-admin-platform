@@ -8,6 +8,7 @@ import ProgressAnalyticsDashboard from '../../components/student/ProgressAnalyti
 import {
   calculateCompletionRate,
   calculateOnTimeRate,
+  calculateSkillScores,
   identifyBottlenecks,
   predictCompletionDate,
 } from '../../utils/analyticsCalculations'
@@ -32,7 +33,7 @@ function computeDailyStreak(isoDates = []) {
   today.setHours(0, 0, 0, 0)
 
   let streak = 0
-  for (;;) {
+  for (; ;) {
     const day = new Date(today)
     day.setDate(day.getDate() - streak)
     if (uniqueDays.has(day.getTime())) streak += 1
@@ -52,6 +53,8 @@ export default function StudentAnalytics() {
     instanceDetailsById,
     fetchMyInstances,
     fetchInstanceDetails,
+    fetchStudentAnalytics,
+    recalculateAnalytics,
   } = useProgramManagement()
 
   const myInstances = useMemo(() => {
@@ -70,18 +73,38 @@ export default function StudentAnalytics() {
     if (!currentUser?.id) return
 
     // Provider *usually* fetches these on mount, but keep this page resilient.
-    fetchMyInstances().catch(() => {})
+    fetchMyInstances().catch(() => { })
   }, [currentUser?.id, fetchMyInstances, hydrated])
 
   useEffect(() => {
     if (!effectiveInstanceId) return
-    fetchInstanceDetails(effectiveInstanceId).catch(() => {})
+    fetchInstanceDetails(effectiveInstanceId).catch(() => { })
   }, [effectiveInstanceId, fetchInstanceDetails])
 
   const selectedDetails = useMemo(() => {
     if (!effectiveInstanceId) return null
     return instanceDetailsById[effectiveInstanceId] ?? null
   }, [effectiveInstanceId, instanceDetailsById])
+
+  const [dbAnalytics, setDbAnalytics] = useState(null)
+
+  useEffect(() => {
+    if (!effectiveInstanceId) return
+
+    let cancelled = false
+    const load = async () => {
+      try {
+        // Recalculate to ensure fresh data (non-blocking)
+        await recalculateAnalytics(effectiveInstanceId)
+        const ana = await fetchStudentAnalytics(effectiveInstanceId)
+        if (!cancelled && ana) setDbAnalytics(ana)
+      } catch (err) {
+        console.warn('Could not load analytics from DB:', err)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [effectiveInstanceId, fetchStudentAnalytics, recalculateAnalytics])
 
   const selectedInstance = selectedDetails?.instance ?? null
   const selectedTasks = useMemo(() => selectedDetails?.tasks ?? [], [selectedDetails])
@@ -93,44 +116,50 @@ export default function StudentAnalytics() {
   }, [selectedInstance, templates])
 
   const analytics = useMemo(() => {
+    // If we have DB analytics, prioritize them but merge with local task info
+    const baseAnalytics = dbAnalytics || {}
+
     if (!selectedInstance) return null
 
     const tasks = selectedTasks
 
-    const completionPercentage = calculateCompletionRate(tasks)
-    const tasksTotal = tasks.length
-    const tasksCompleted = tasks.filter((t) => t.status === 'approved').length
-    const tasksInProgress = tasks.filter((t) => t.status === 'in_progress' || t.status === 'submitted').length
+    // Fallback/Local calculations
+    const completionPercentage = baseAnalytics.completionPercentage ?? calculateCompletionRate(tasks)
+    const tasksTotal = baseAnalytics.tasksTotal ?? tasks.length
+    const tasksCompleted = baseAnalytics.tasksCompleted ?? tasks.filter((t) => t.status === 'approved').length
+    const tasksInProgress = baseAnalytics.tasksInProgress ?? tasks.filter((t) => t.status === 'in_progress' || t.status === 'submitted').length
 
-    const onTimeCompletionRate = calculateOnTimeRate(tasks)
-    const bottleneckTasks = identifyBottlenecks(tasks)
+    const onTimeCompletionRate = baseAnalytics.onTimeCompletionRate ?? calculateOnTimeRate(tasks)
+    const bottleneckTasks = baseAnalytics.bottleneckTasks?.length ? baseAnalytics.bottleneckTasks : identifyBottlenecks(tasks)
 
     const predicted = predictCompletionDate(tasks, selectedInstance.startedAt)
 
     const start = new Date(selectedInstance.startedAt)
     const now = new Date()
     const daysElapsed = Math.max(1, (now - start) / (1000 * 60 * 60 * 24))
-    const currentPaceTasksPerWeek = Math.round((tasksCompleted / daysElapsed) * 7 * 10) / 10
+    const currentPaceTasksPerWeek = baseAnalytics.currentPaceTasksPerWeek ?? (Math.round((tasksCompleted / daysElapsed) * 7 * 10) / 10)
+
+    const { strengthAreas, weaknessAreas } = calculateSkillScores(tasks)
 
     return {
-      id: `analytics_${selectedInstance.id}`,
+      id: baseAnalytics.id || `analytics_${selectedInstance.id}`,
       instanceId: selectedInstance.id,
       studentId: selectedInstance.studentId,
       completionPercentage,
       tasksTotal,
       tasksCompleted,
       tasksInProgress,
-      averageQualityScore: null,
-      averageTimePerTaskMinutes: null,
+      averageQualityScore: baseAnalytics.averageQualityScore || (tasksCompleted > 0 ? (tasks.reduce((acc, t) => acc + (t.qualityScore || 0), 0) / tasksCompleted) : null),
+      averageTimePerTaskMinutes: baseAnalytics.averageTimePerTaskMinutes || (tasksCompleted > 0 ? (tasks.reduce((acc, t) => acc + (t.timeSpentMinutes || 0), 0) / tasksCompleted) : null),
       onTimeCompletionRate,
-      strengthAreas: [],
-      weaknessAreas: [],
-      predictedCompletionDate: predicted ? predicted.toISOString() : null,
+      strengthAreas: baseAnalytics.strengthAreas?.length ? baseAnalytics.strengthAreas : strengthAreas,
+      weaknessAreas: baseAnalytics.weaknessAreas?.length ? baseAnalytics.weaknessAreas : weaknessAreas,
+      predictedCompletionDate: baseAnalytics.predictedCompletionDate || (predicted ? predicted.toISOString() : null),
       currentPaceTasksPerWeek,
       bottleneckTasks,
-      lastCalculatedAt: new Date().toISOString(),
+      lastCalculatedAt: baseAnalytics.lastCalculatedAt || new Date().toISOString(),
     }
-  }, [selectedInstance, selectedTasks])
+  }, [dbAnalytics, selectedInstance, selectedTasks])
 
   const gamification = useMemo(() => {
     const approvedDates = selectedTasks

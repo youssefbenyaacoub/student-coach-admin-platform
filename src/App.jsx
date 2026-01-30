@@ -85,9 +85,11 @@ export default function App() {
           path="settings"
           element={<Placeholder title="Settings" message="Platform configuration." />}
         />
-        <Route path="forum" element={<ForumHome />} />
-        <Route path="forum/category/:categoryId" element={<CategoryView />} />
-        <Route path="forum/topic/:topicId" element={<TopicView />} />
+        <Route path="forum">
+          <Route index element={<ForumHome />} />
+          <Route path="category/:categoryId" element={<CategoryView />} />
+          <Route path="topic/:topicId" element={<TopicView />} />
+        </Route>
       </Route>
 
       <Route
@@ -107,9 +109,11 @@ export default function App() {
         <Route path="deliverables" element={<CoachDeliverables />} />
         <Route path="messages" element={<CoachMessages />} />
         <Route path="profile" element={<Profile />} />
-        <Route path="forum" element={<ForumHome />} />
-        <Route path="forum/category/:categoryId" element={<CategoryView />} />
-        <Route path="forum/topic/:topicId" element={<TopicView />} />
+        <Route path="forum">
+          <Route index element={<ForumHome />} />
+          <Route path="category/:categoryId" element={<CategoryView />} />
+          <Route path="topic/:topicId" element={<TopicView />} />
+        </Route>
       </Route>
 
       <Route
@@ -130,9 +134,11 @@ export default function App() {
         <Route path="sessions" element={<StudentSessions />} />
         <Route path="messages" element={<Messages />} />
         <Route path="profile" element={<Profile />} />
-        <Route path="forum" element={<ForumHome />} />
-        <Route path="forum/category/:categoryId" element={<CategoryView />} />
-        <Route path="forum/topic/:topicId" element={<TopicView />} />
+        <Route path="forum">
+          <Route index element={<ForumHome />} />
+          <Route path="category/:categoryId" element={<CategoryView />} />
+          <Route path="topic/:topicId" element={<TopicView />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<NotFound />} />

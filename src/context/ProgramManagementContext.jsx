@@ -77,6 +77,12 @@ const mapInstanceTask = (row) => ({
   coachFeedback: row.coach_feedback ?? null,
   approvedAt: row.approved_at ?? null,
   approvedBy: row.approved_by ?? null,
+  qualityScore: row.quality_score ?? null,
+  performanceData: row.performance_data ?? {},
+  timeSpentMinutes: row.time_spent_minutes ?? null,
+  autoAdvanced: Boolean(row.auto_advanced),
+  skipReason: row.skip_reason ?? null,
+  submissionAttempts: row.submission_attempts ?? 0,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 })
@@ -505,6 +511,55 @@ export function ProgramManagementProvider({ children }) {
     if (instanceId) await fetchInstanceDetails(instanceId)
   }, [fetchInstanceDetails, instanceDetailsById])
 
+  const fetchStudentAnalytics = useCallback(async (instanceId) => {
+    if (!instanceId) return null
+    const { data, error } = await supabase
+      .from('student_progress_analytics')
+      .select('*')
+      .eq('instance_id', instanceId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      console.warn('Error fetching student analytics:', error)
+      return null
+    }
+
+    if (!data) return null
+
+    const mapped = {
+      id: data.id,
+      instanceId: data.instance_id,
+      studentId: data.student_id,
+      completionPercentage: data.completion_percentage,
+      tasksTotal: data.tasks_total,
+      tasksCompleted: data.tasks_completed,
+      tasksInProgress: data.tasks_in_progress,
+      averageQualityScore: data.average_quality_score,
+      averageTimePerTaskMinutes: data.average_time_per_task_minutes,
+      onTimeCompletionRate: data.on_time_completion_rate,
+      strengthAreas: data.strength_areas ?? [],
+      weaknessAreas: data.weakness_areas ?? [],
+      predictedCompletionDate: data.predicted_completion_date,
+      currentPaceTasksPerWeek: data.current_pace_tasks_per_week,
+      bottleneckTasks: data.bottleneck_tasks ?? [],
+      lastCalculatedAt: data.last_calculated_at,
+    }
+
+    return mapped
+  }, [])
+
+  const recalculateAnalytics = useCallback(async (instanceId) => {
+    if (!instanceId) return null
+    const { data, error } = await supabase.rpc('calculate_student_progress_analytics', {
+      p_instance_id: instanceId,
+    })
+    if (error) {
+      console.error('Error recalculating analytics:', error)
+      throw error
+    }
+    return data
+  }, [])
+
   const subscribeToInstanceTasks = useCallback(
     async (instanceId) => {
       if (!instanceId) return
@@ -520,7 +575,7 @@ export function ProgramManagementProvider({ children }) {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'program_instance_tasks', filter: `instance_id=eq.${instanceId}` },
           () => {
-            fetchInstanceDetails(instanceId).catch(() => {})
+            fetchInstanceDetails(instanceId).catch(() => { })
           },
         )
         .subscribe()
@@ -540,15 +595,15 @@ export function ProgramManagementProvider({ children }) {
     }
 
     let cancelled = false
-    ;(async () => {
-      try {
-        await Promise.all([fetchTemplates(), fetchMyInstances()])
-      } catch {
-        // ignore; UI will surface via toasts at call sites
-      } finally {
-        if (!cancelled) setHydrated(true)
-      }
-    })()
+      ; (async () => {
+        try {
+          await Promise.all([fetchTemplates(), fetchMyInstances()])
+        } catch {
+          // ignore; UI will surface via toasts at call sites
+        } finally {
+          if (!cancelled) setHydrated(true)
+        }
+      })()
 
     return () => {
       cancelled = true
@@ -589,6 +644,8 @@ export function ProgramManagementProvider({ children }) {
       advanceInstanceStage,
       injectTask,
       extendTaskDeadline,
+      fetchStudentAnalytics,
+      recalculateAnalytics,
       subscribeToInstanceTasks,
     }),
     [
@@ -617,6 +674,8 @@ export function ProgramManagementProvider({ children }) {
       advanceInstanceStage,
       injectTask,
       extendTaskDeadline,
+      fetchStudentAnalytics,
+      recalculateAnalytics,
       subscribeToInstanceTasks,
     ],
   )
