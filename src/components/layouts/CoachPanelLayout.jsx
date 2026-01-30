@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, LayoutDashboard, Users, CheckSquare, MessageSquare, Menu, Globe, Settings, FolderKanban, Target } from 'lucide-react'
+import { LogOut, LayoutDashboard, Users, CheckSquare, MessageSquare, Menu, Globe, Settings, FolderKanban, Target, AlertTriangle, Bell } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { useState } from 'react'
@@ -31,6 +31,7 @@ export default function CoachPanelLayout() {
 
   const navItems = [
     { label: 'Dashboard', to: '/coach', icon: LayoutDashboard, end: true },
+    { label: 'Alerts', to: '/coach/alerts', icon: Bell },
     { label: 'Projects', to: '/coach/projects', icon: FolderKanban },
     { label: 'Tasks', to: '/coach/tasks', icon: Target },
     { label: 'Students', to: '/coach/students', icon: Users },

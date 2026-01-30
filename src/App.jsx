@@ -13,6 +13,7 @@ import Placeholder from './pages/admin/Placeholder'
 import AdminProjects from './pages/admin/Projects'
 import AdminMatching from './pages/admin/Matching'
 import CoachDashboard from './pages/coach/Dashboard'
+import CoachAlerts from './pages/coach/Alerts'
 import CoachProjects from './pages/coach/Projects'
 import CoachPrograms from './pages/coach/Programs'
 import CoachSessions from './pages/coach/Sessions'
@@ -103,6 +104,7 @@ export default function App() {
         }
       >
         <Route index element={<CoachDashboard />} />
+        <Route path="alerts" element={<CoachAlerts />} />
         <Route path="projects" element={<CoachProjects />} />
         <Route path="tasks" element={<CoachTasks />} />
         <Route path="students" element={<CoachStudents />} />
