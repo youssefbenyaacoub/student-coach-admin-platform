@@ -87,7 +87,7 @@ export function generateAdaptivePath(template, studentData) {
     if (!template || !studentData) return null
 
     const { stages } = template
-    const { performanceData, strengthAreas, weaknessAreas } = studentData
+    const { performanceData, weaknessAreas } = studentData
 
     const adaptivePath = {
         recommendedStages: [],

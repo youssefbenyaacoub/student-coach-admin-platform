@@ -10,11 +10,6 @@ export default function CohortManager() {
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        fetchCohorts()
-        fetchTemplates()
-    }, [])
-
     const fetchCohorts = async () => {
         setLoading(true)
         const { data, error } = await supabase
@@ -34,6 +29,11 @@ export default function CohortManager() {
 
         setTemplates(data || [])
     }
+
+    useEffect(() => {
+        fetchCohorts()
+        fetchTemplates()
+    }, [])
 
     const createCohort = async (formData) => {
         const { error } = await supabase
@@ -118,10 +118,6 @@ function StatCard({ icon: Icon, label, value, color }) {
 function CohortCard({ cohort }) {
     const [applications, setApplications] = useState([])
 
-    useEffect(() => {
-        fetchApplications()
-    }, [cohort.id])
-
     const fetchApplications = async () => {
         const { data } = await supabase
             .from('cohort_applications')
@@ -130,6 +126,10 @@ function CohortCard({ cohort }) {
 
         setApplications(data || [])
     }
+
+    useEffect(() => {
+        fetchApplications()
+    }, [cohort.id])
 
     const statusColors = {
         planning: 'bg-gray-100 text-gray-700',

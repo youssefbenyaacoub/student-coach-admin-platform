@@ -20,14 +20,6 @@ export default function PitchDeckBuilder({ deckId }) {
     const [sections, setSections] = useState([])
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        if (deckId) {
-            fetchDeck()
-        } else {
-            createNewDeck()
-        }
-    }, [deckId])
-
     const fetchDeck = async () => {
         const { data: deckData } = await supabase
             .from('pitch_decks')
@@ -58,6 +50,14 @@ export default function PitchDeckBuilder({ deckId }) {
             setLoading(false)
         }
     }
+
+    useEffect(() => {
+        if (deckId) {
+            fetchDeck()
+        } else {
+            createNewDeck()
+        }
+    }, [deckId])
 
     const addSection = async (sectionType) => {
         const template = SECTION_TEMPLATES[sectionType]

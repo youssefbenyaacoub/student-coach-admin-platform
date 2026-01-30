@@ -10,10 +10,6 @@ export default function ApplicationReview({ cohortId }) {
     const [filter, setFilter] = useState('submitted')
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        fetchApplications()
-    }, [cohortId, filter])
-
     const fetchApplications = async () => {
         setLoading(true)
         const { data, error } = await supabase
@@ -26,6 +22,10 @@ export default function ApplicationReview({ cohortId }) {
         if (!error) setApplications(data || [])
         setLoading(false)
     }
+
+    useEffect(() => {
+        fetchApplications()
+    }, [cohortId, filter])
 
     const updateApplicationStatus = async (applicationId, newStatus) => {
         const { error } = await supabase
@@ -64,8 +64,8 @@ export default function ApplicationReview({ cohortId }) {
                         key={status}
                         onClick={() => setFilter(status)}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === status
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
                             }`}
                     >
                         {status.replace('_', ' ')}
@@ -206,8 +206,8 @@ function ApplicationDetail({ application, onAccept, onReject, onWaitlist, onEval
                                 key={rec}
                                 onClick={() => setRecommendation(rec)}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${recommendation === rec
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
                                     }`}
                             >
                                 {rec.replace('_', ' ')}

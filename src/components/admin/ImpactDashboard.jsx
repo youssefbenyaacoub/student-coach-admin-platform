@@ -13,16 +13,6 @@ export default function ImpactDashboard({ cohortId }) {
     const [selectedCohort, setSelectedCohort] = useState(cohortId)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        fetchCohorts()
-    }, [])
-
-    useEffect(() => {
-        if (selectedCohort) {
-            fetchMetrics()
-        }
-    }, [selectedCohort])
-
     const fetchCohorts = async () => {
         const { data } = await supabase
             .from('cohorts')
@@ -34,6 +24,10 @@ export default function ImpactDashboard({ cohortId }) {
             setSelectedCohort(data[0].id)
         }
     }
+
+    useEffect(() => {
+        fetchCohorts()
+    }, [])
 
     const fetchMetrics = async () => {
         setLoading(true)
@@ -63,6 +57,12 @@ export default function ImpactDashboard({ cohortId }) {
 
         setLoading(false)
     }
+
+    useEffect(() => {
+        if (selectedCohort) {
+            fetchMetrics()
+        }
+    }, [selectedCohort])
 
     const exportReport = () => {
         // Generate CSV export

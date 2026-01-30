@@ -11,12 +11,6 @@ export default function AlumniHub() {
     const [filter, setFilter] = useState('all')
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        fetchAlumni()
-        fetchJobs()
-        fetchStories()
-    }, [filter])
-
     const fetchAlumni = async () => {
         setLoading(true)
         let query = supabase
@@ -57,6 +51,12 @@ export default function AlumniHub() {
 
         setStories(data || [])
     }
+
+    useEffect(() => {
+        fetchAlumni()
+        fetchJobs()
+        fetchStories()
+    }, [filter])
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -110,8 +110,8 @@ export default function AlumniHub() {
                         <button
                             onClick={() => setFilter('all')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'all'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                 }`}
                         >
                             All
@@ -119,8 +119,8 @@ export default function AlumniHub() {
                         <button
                             onClick={() => setFilter('mentors')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'mentors'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                 }`}
                         >
                             Mentors
@@ -128,8 +128,8 @@ export default function AlumniHub() {
                         <button
                             onClick={() => setFilter('speakers')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'speakers'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                 }`}
                         >
                             Speakers

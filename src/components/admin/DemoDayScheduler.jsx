@@ -9,10 +9,6 @@ export default function DemoDayScheduler() {
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        fetchDemoDays()
-    }, [])
-
     const fetchDemoDays = async () => {
         const { data } = await supabase
             .from('demo_days')
@@ -22,6 +18,10 @@ export default function DemoDayScheduler() {
         setDemoDays(data || [])
         setLoading(false)
     }
+
+    useEffect(() => {
+        fetchDemoDays()
+    }, [])
 
     const createDemoDay = async (formData) => {
         const { error } = await supabase

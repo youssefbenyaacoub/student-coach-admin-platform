@@ -8,7 +8,7 @@ import { formatDate } from '../../utils/time'
  * Progress Analytics Dashboard Component
  * Displays comprehensive analytics for student progress
  */
-export default function ProgressAnalyticsDashboard({ analytics, tasks, instanceName }) {
+export default function ProgressAnalyticsDashboard({ analytics, tasks }) {
     // Prepare data for radar chart (strengths/weaknesses)
     const skillsData = useMemo(() => {
         if (!analytics) return []

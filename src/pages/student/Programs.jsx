@@ -448,14 +448,15 @@ export default function StudentPrograms() {
                   disabled={alreadyApplied}
                   onClick={() => handleEnroll(program)}
                   className={`mt-6 w-full rounded-xl py-2.5 text-sm font-bold text-white shadow-lg transition-all ${alreadyApplied
-                      ? 'bg-slate-400 cursor-not-allowed shadow-none'
-                      : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20 hover:shadow-xl active:scale-95'
+                    ? 'bg-slate-400 cursor-not-allowed shadow-none'
+                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20 hover:shadow-xl active:scale-95'
                     }`}
                 >
                   {alreadyApplied ? 'Already Applied' : 'Enroll Now'}
                 </button>
               </Card>
-            ))}
+            )
+          })}
         </div>
 
         {activeTemplates.length === 0 && availablePrograms.length === 0 && (

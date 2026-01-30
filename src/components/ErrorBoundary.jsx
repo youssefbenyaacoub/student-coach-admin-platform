@@ -8,7 +8,7 @@ class ErrorBoundary extends Component {
         this.state = { hasError: false, error: null, errorInfo: null }
     }
 
-    static getDerivedStateFromError(error) {
+    static getDerivedStateFromError(_error) {
         return { hasError: true }
     }
 
@@ -22,7 +22,7 @@ class ErrorBoundary extends Component {
         console.error('Error caught by boundary:', error, errorInfo)
 
         // Optional: Send to backend
-        if (process.env.NODE_ENV === 'production') {
+        if (import.meta.env.MODE === 'production') {
             // fetch('/api/log-error', {
             //   method: 'POST',
             //   body: JSON.stringify({ error: error.toString(), errorInfo })
@@ -49,7 +49,7 @@ class ErrorBoundary extends Component {
                             </p>
                         </div>
 
-                        {process.env.NODE_ENV === 'development' && this.state.error && (
+                        {import.meta.env.MODE === 'development' && this.state.error && (
                             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
                                 <p className="font-mono text-sm text-red-800 dark:text-red-300 mb-2">
                                     {this.state.error.toString()}

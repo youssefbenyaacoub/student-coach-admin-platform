@@ -20,14 +20,6 @@ export default function ResourceDirectory() {
     const [showAddModal, setShowAddModal] = useState(false)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        fetchResources()
-    }, [])
-
-    useEffect(() => {
-        filterResources()
-    }, [resources, selectedType, searchQuery])
-
     const fetchResources = async () => {
         setLoading(true)
         const { data, error } = await supabase
@@ -39,6 +31,10 @@ export default function ResourceDirectory() {
         if (!error) setResources(data || [])
         setLoading(false)
     }
+
+    useEffect(() => {
+        fetchResources()
+    }, [])
 
     const filterResources = () => {
         let filtered = resources
@@ -56,6 +52,10 @@ export default function ResourceDirectory() {
 
         setFilteredResources(filtered)
     }
+
+    useEffect(() => {
+        filterResources()
+    }, [resources, selectedType, searchQuery])
 
     const addResource = async (formData) => {
         const { error } = await supabase
@@ -113,8 +113,8 @@ export default function ResourceDirectory() {
                     <button
                         onClick={() => setSelectedType('all')}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'all'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
                             }`}
                     >
                         All
@@ -124,8 +124,8 @@ export default function ResourceDirectory() {
                             key={type}
                             onClick={() => setSelectedType(type)}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === type
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
                                 }`}
                         >
                             {config.label}

@@ -10,12 +10,10 @@ import { formatDate } from '../../utils/time'
  */
 export default function SessionBooking({ availableSlots, coaches, onBookSession }) {
     const [selectedSlot, setSelectedSlot] = useState(null)
-    const [isConfirming, setIsConfirming] = useState(false)
 
     const handleBook = () => {
         if (selectedSlot) {
             onBookSession(selectedSlot.id)
-            setIsConfirming(false)
             setSelectedSlot(null)
         }
     }
@@ -62,8 +60,8 @@ export default function SessionBooking({ availableSlots, coaches, onBookSession 
                                             key={slot.id}
                                             onClick={() => setSelectedSlot(slot)}
                                             className={`w-full text-left p-3 rounded-lg border transition-all flex justify-between items-center ${isSelected
-                                                    ? 'border-student-primary bg-student-primary/5 ring-2 ring-student-primary/20'
-                                                    : 'border-slate-200 dark:border-slate-700 hover:border-student-primary/50'
+                                                ? 'border-student-primary bg-student-primary/5 ring-2 ring-student-primary/20'
+                                                : 'border-slate-200 dark:border-slate-700 hover:border-student-primary/50'
                                                 }`}
                                         >
                                             <div>

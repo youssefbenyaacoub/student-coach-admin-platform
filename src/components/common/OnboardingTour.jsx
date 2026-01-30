@@ -58,10 +58,6 @@ export default function OnboardingTour({ tourName, onComplete }) {
     const [run, setRun] = useState(false)
     const [stepIndex, setStepIndex] = useState(0)
 
-    useEffect(() => {
-        checkTourCompletion()
-    }, [tourName])
-
     const checkTourCompletion = async () => {
         const user = await supabase.auth.getUser()
         const { data } = await supabase
@@ -75,6 +71,10 @@ export default function OnboardingTour({ tourName, onComplete }) {
             setRun(true)
         }
     }
+
+    useEffect(() => {
+        checkTourCompletion()
+    }, [tourName])
 
     const handleJoyrideCallback = async (data) => {
         const { status, index, type } = data

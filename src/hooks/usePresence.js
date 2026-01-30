@@ -6,23 +6,6 @@ export function usePresence(channelId) {
     const channelRef = useRef(null)
     const heartbeatRef = useRef(null)
 
-    useEffect(() => {
-        if (!channelId) return
-
-        subscribeToPresence()
-        startHeartbeat()
-
-        return () => {
-            if (channelRef.current) {
-                channelRef.current.untrack()
-                supabase.removeChannel(channelRef.current)
-            }
-            if (heartbeatRef.current) {
-                clearInterval(heartbeatRef.current)
-            }
-        }
-    }, [channelId])
-
     const subscribeToPresence = async () => {
         const user = await supabase.auth.getUser()
         const userId = user.data.user?.id
@@ -66,6 +49,23 @@ export function usePresence(channelId) {
             }
         }, 30000)
     }
+
+    useEffect(() => {
+        if (!channelId) return
+
+        subscribeToPresence()
+        startHeartbeat()
+
+        return () => {
+            if (channelRef.current) {
+                channelRef.current.untrack()
+                supabase.removeChannel(channelRef.current)
+            }
+            if (heartbeatRef.current) {
+                clearInterval(heartbeatRef.current)
+            }
+        }
+    }, [channelId])
 
     const updateStatus = async (status) => {
         await supabase.rpc('update_presence', {

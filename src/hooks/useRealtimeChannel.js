@@ -8,22 +8,6 @@ export function useRealtimeChannel(channelId) {
     const channelRef = useRef(null)
     const typingTimeoutRef = useRef(null)
 
-    useEffect(() => {
-        if (!channelId) return
-
-        fetchMessages()
-        subscribeToChannel()
-
-        return () => {
-            if (channelRef.current) {
-                supabase.removeChannel(channelRef.current)
-            }
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current)
-            }
-        }
-    }, [channelId])
-
     const fetchMessages = async () => {
         setLoading(true)
         const { data, error } = await supabase
@@ -74,6 +58,22 @@ export function useRealtimeChannel(channelId) {
 
         channelRef.current = channel
     }
+
+    useEffect(() => {
+        if (!channelId) return
+
+        fetchMessages()
+        subscribeToChannel()
+
+        return () => {
+            if (channelRef.current) {
+                supabase.removeChannel(channelRef.current)
+            }
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current)
+            }
+        }
+    }, [channelId])
 
     const sendMessage = async (content, attachments = []) => {
         const { error } = await supabase

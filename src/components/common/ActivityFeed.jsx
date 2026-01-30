@@ -8,11 +8,6 @@ export default function ActivityFeed({ instanceId, cohortId }) {
     const [filter, setFilter] = useState('all')
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        fetchActivities()
-        subscribeToActivities()
-    }, [instanceId, cohortId, filter])
-
     const fetchActivities = async () => {
         setLoading(true)
 
@@ -72,6 +67,11 @@ export default function ActivityFeed({ instanceId, cohortId }) {
             supabase.removeChannel(channel)
         }
     }
+
+    useEffect(() => {
+        fetchActivities()
+        subscribeToActivities()
+    }, [instanceId, cohortId, filter])
 
     return (
         <Card className="p-6">

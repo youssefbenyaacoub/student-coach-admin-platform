@@ -12,14 +12,14 @@ export default function ChatPanel({ channelId, onClose }) {
     const [sending, setSending] = useState(false)
     const messagesEndRef = useRef(null)
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+
     useEffect(() => {
         scrollToBottom()
         markAsRead()
     }, [messages])
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
 
     const handleSend = async () => {
         if (!newMessage.trim() || sending) return
@@ -123,8 +123,8 @@ function MessageBubble({ message }) {
                 )}
                 <div
                     className={`px-4 py-2 rounded-lg ${isOwn
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
                         }`}
                 >
                     <p className="whitespace-pre-wrap break-words">{message.content}</p>

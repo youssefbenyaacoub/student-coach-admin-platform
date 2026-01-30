@@ -7,17 +7,6 @@ export function useNotifications() {
     const [loading, setLoading] = useState(true)
     const channelRef = useRef(null)
 
-    useEffect(() => {
-        fetchNotifications()
-        subscribeToNotifications()
-
-        return () => {
-            if (channelRef.current) {
-                supabase.removeChannel(channelRef.current)
-            }
-        }
-    }, [])
-
     const fetchNotifications = async () => {
         setLoading(true)
         const user = await supabase.auth.getUser()
@@ -86,6 +75,17 @@ export function useNotifications() {
 
         channelRef.current = channel
     }
+
+    useEffect(() => {
+        fetchNotifications()
+        subscribeToNotifications()
+
+        return () => {
+            if (channelRef.current) {
+                supabase.removeChannel(channelRef.current)
+            }
+        }
+    }, [])
 
     const markAsRead = async (notificationIds) => {
         const { error } = await supabase.rpc('mark_notifications_read', {
