@@ -21,6 +21,8 @@ import CoachDeliverables from './pages/coach/Deliverables'
 import CoachStudents from './pages/coach/Students'
 import CoachMessages from './pages/coach/Messages'
 import CoachTasks from './pages/coach/Tasks'
+import GradingDashboard from './pages/coach/GradingDashboard'
+import GradingInterface from './pages/coach/GradingInterface'
 import StudentDashboard from './pages/student/Dashboard'
 import StudentProjects from './pages/student/Projects'
 import StudentPrograms from './pages/student/Programs'
@@ -111,6 +113,8 @@ export default function App() {
         <Route path="programs" element={<CoachPrograms />} />
         <Route path="sessions" element={<CoachSessions />} />
         <Route path="deliverables" element={<CoachDeliverables />} />
+        <Route path="grading" element={<GradingDashboard />} />
+        <Route path="grading/:submissionId" element={<GradingInterface />} />
         <Route path="messages" element={<CoachMessages />} />
         <Route path="profile" element={<Profile />} />
         <Route path="forum">
