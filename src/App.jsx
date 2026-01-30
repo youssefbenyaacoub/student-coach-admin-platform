@@ -139,9 +139,9 @@ export default function App() {
         <Route path="forum">
           <Route index element={<ForumHome />} />
           <Route path="category/:categoryId" element={<CategoryView />} />
-          <Route path="calendar" element={<CalendarPage />} />
           <Route path="topic/:topicId" element={<TopicView />} />
         </Route>
+        <Route path="calendar" element={<CalendarPage />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
