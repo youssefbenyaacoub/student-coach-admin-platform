@@ -33,6 +33,9 @@ export function DataProvider({ children }) {
     projectSubmissions: [],
     notifications: [],
     tasks: [],
+    forumCategories: [],
+    forumTopics: [],
+    forumPosts: [],
   })
 
   const mapProgram = useCallback((p) => {
@@ -214,6 +217,43 @@ export function DataProvider({ children }) {
     }
   }, [])
 
+  const mapForumCategory = useCallback((c) => {
+    return {
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      icon: c.icon,
+      orderIndex: c.order_index,
+      createdAt: c.created_at,
+    }
+  }, [])
+
+  const mapForumTopic = useCallback((t) => {
+    return {
+      id: t.id,
+      categoryId: t.category_id,
+      authorId: t.author_id,
+      title: t.title,
+      content: t.content,
+      isPinned: t.is_pinned,
+      isLocked: t.is_locked,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+    }
+  }, [])
+
+  const mapForumPost = useCallback((p) => {
+    return {
+      id: p.id,
+      topicId: p.topic_id,
+      authorId: p.author_id,
+      content: p.content,
+      parentPostId: p.parent_post_id,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    }
+  }, [])
+
   const isMissingTableError = useCallback((err) => {
     const code = err?.code
     const msg = String(err?.message ?? '')
@@ -333,6 +373,22 @@ export function DataProvider({ children }) {
         console.warn('Could not fetch tasks from Supabase:', err)
       }
 
+      let forumCategories = []
+      let forumTopics = []
+      let forumPosts = []
+      try {
+        const [catRes, topRes, postRes] = await Promise.all([
+          supabase.from('forum_categories').select('*').order('order_index', { ascending: true }),
+          supabase.from('forum_topics').select('*').order('created_at', { ascending: false }),
+          supabase.from('forum_posts').select('*').order('created_at', { ascending: true }),
+        ])
+        forumCategories = (catRes.data || []).map(mapForumCategory)
+        forumTopics = (topRes.data || []).map(mapForumTopic)
+        forumPosts = (postRes.data || []).map(mapForumPost)
+      } catch (err) {
+        console.warn('Could not fetch forum data:', err)
+      }
+
       setData({
         users: usersRes.data || [],
         programs,
@@ -345,6 +401,9 @@ export function DataProvider({ children }) {
         projectSubmissions,
         notifications,
         tasks,
+        forumCategories,
+        forumTopics,
+        forumPosts,
       })
 
       setHydrated(true)
@@ -352,7 +411,7 @@ export function DataProvider({ children }) {
       console.error('Error fetching data:', error)
       setHydrated(true)
     }
-  }, [mapApplication, mapCoachingSession, mapDeliverable, mapMessage, mapMessageDeletion, mapNotification, mapProgram, mapProjectRow, mapProjectSubmissionRow, mapTaskRow])
+  }, [mapApplication, mapCoachingSession, mapDeliverable, mapForumCategory, mapForumPost, mapForumTopic, mapMessage, mapMessageDeletion, mapNotification, mapProgram, mapProjectRow, mapProjectSubmissionRow, mapTaskRow])
 
   const refreshProjects = useCallback(async () => {
     try {
@@ -455,18 +514,59 @@ export function DataProvider({ children }) {
     } catch (err) {
       console.warn('Projects realtime channel setup failed:', err)
     }
+  }, [authUserId, mapProjectRow, mapProjectSubmissionRow])
+
+  // Realtime: Forum
+  useEffect(() => {
+    if (!authUserId) return
+
+    const forumChannel = supabase
+      .channel('realtime-forum')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_categories' }, (payload) => {
+        setData((prev) => {
+          const current = prev.forumCategories ?? []
+          if (payload.eventType === 'DELETE') {
+            return { ...prev, forumCategories: current.filter((c) => c.id !== payload.old?.id) }
+          }
+          const mapped = mapForumCategory(payload.new)
+          const exists = current.some((c) => c.id === mapped.id)
+          if (payload.eventType === 'INSERT' && !exists) return { ...prev, forumCategories: [...current, mapped].sort((a, b) => a.orderIndex - b.orderIndex) }
+          if (payload.eventType === 'UPDATE' && exists) return { ...prev, forumCategories: current.map((c) => (c.id === mapped.id ? mapped : c)).sort((a, b) => a.orderIndex - b.orderIndex) }
+          return prev
+        })
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_topics' }, (payload) => {
+        setData((prev) => {
+          const current = prev.forumTopics ?? []
+          if (payload.eventType === 'DELETE') {
+            return { ...prev, forumTopics: current.filter((t) => t.id !== payload.old?.id) }
+          }
+          const mapped = mapForumTopic(payload.new)
+          const exists = current.some((t) => t.id === mapped.id)
+          if (payload.eventType === 'INSERT' && !exists) return { ...prev, forumTopics: [mapped, ...current] }
+          if (payload.eventType === 'UPDATE' && exists) return { ...prev, forumTopics: current.map((t) => (t.id === mapped.id ? mapped : t)) }
+          return prev
+        })
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_posts' }, (payload) => {
+        setData((prev) => {
+          const current = prev.forumPosts ?? []
+          if (payload.eventType === 'DELETE') {
+            return { ...prev, forumPosts: current.filter((p) => p.id !== payload.old?.id) }
+          }
+          const mapped = mapForumPost(payload.new)
+          const exists = current.some((p) => p.id === mapped.id)
+          if (payload.eventType === 'INSERT' && !exists) return { ...prev, forumPosts: [...current, mapped] }
+          if (payload.eventType === 'UPDATE' && exists) return { ...prev, forumPosts: current.map((p) => (p.id === mapped.id ? mapped : p)) }
+          return prev
+        })
+      })
+      .subscribe()
 
     return () => {
-      try {
-        if (projectsChannelRef.current) {
-          supabase.removeChannel(projectsChannelRef.current)
-          projectsChannelRef.current = null
-        }
-      } catch {
-        // ignore
-      }
+      supabase.removeChannel(forumChannel)
     }
-  }, [authUserId, mapProjectRow, mapProjectSubmissionRow])
+  }, [authUserId, mapForumCategory, mapForumTopic, mapForumPost])
 
   // Realtime: tasks
   useEffect(() => {
@@ -2109,6 +2209,96 @@ export function DataProvider({ children }) {
     return { success: true }
   }, [authUserId, data.users, mapTaskRow])
 
+  // ===================
+  // FORUM
+  // ===================
+
+  const listForumCategories = useCallback(() => {
+    return [...(data.forumCategories ?? [])].sort((a, b) => a.orderIndex - b.orderIndex)
+  }, [data.forumCategories])
+
+  const listForumTopics = useCallback(({ categoryId } = {}) => {
+    let topics = data.forumTopics ?? []
+    if (categoryId) topics = topics.filter((t) => t.categoryId === categoryId)
+    return [...topics].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  }, [data.forumTopics])
+
+  const listForumPosts = useCallback(({ topicId } = {}) => {
+    let posts = data.forumPosts ?? []
+    if (topicId) posts = posts.filter((p) => p.topicId === topicId)
+    return [...posts].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+  }, [data.forumPosts])
+
+  const createForumTopic = useCallback(async ({ categoryId, authorId, title, content }) => {
+    try {
+      const { data: inserted, error } = await supabase
+        .from('forum_topics')
+        .insert({
+          category_id: categoryId,
+          author_id: authorId,
+          title: String(title).trim(),
+          content: String(content).trim(),
+        })
+        .select('*')
+        .single()
+
+      if (error) throw error
+      const mapped = mapForumTopic(inserted)
+      setData((prev) => ({ ...prev, forumTopics: [mapped, ...(prev.forumTopics ?? [])] }))
+      return mapped
+    } catch (error) {
+      console.error('Error creating forum topic:', error)
+      throw error
+    }
+  }, [mapForumTopic])
+
+  const postForumReply = useCallback(async ({ topicId, authorId, content, parentPostId }) => {
+    try {
+      const { data: inserted, error } = await supabase
+        .from('forum_posts')
+        .insert({
+          topic_id: topicId,
+          author_id: authorId,
+          content: String(content).trim(),
+          parent_post_id: parentPostId ?? null,
+        })
+        .select('*')
+        .single()
+
+      if (error) throw error
+      const mapped = mapForumPost(inserted)
+      setData((prev) => ({ ...prev, forumPosts: [...(prev.forumPosts ?? []), mapped] }))
+      return mapped
+    } catch (error) {
+      console.error('Error posting forum reply:', error)
+      throw error
+    }
+  }, [mapForumPost])
+
+  const deleteForumTopic = useCallback(async (topicId) => {
+    try {
+      const { error } = await supabase.from('forum_topics').delete().eq('id', topicId)
+      if (error) throw error
+      setData((prev) => ({ ...prev, forumTopics: (prev.forumTopics ?? []).filter((t) => t.id !== topicId) }))
+      return { success: true }
+    } catch (error) {
+      console.error('Error deleting forum topic:', error)
+      throw error
+    }
+  }, [])
+
+  const deleteForumPost = useCallback(async (postId) => {
+    try {
+      const { error } = await supabase.from('forum_posts').delete().eq('id', postId)
+      if (error) throw error
+      setData((prev) => ({ ...prev, forumPosts: (prev.forumPosts ?? []).filter((p) => p.id !== postId) }))
+      return { success: true }
+    } catch (error) {
+      console.error('Error deleting forum post:', error)
+      throw error
+    }
+  }, [])
+
   const reset = useCallback(async () => {
     // This would require careful consideration in production
     // For now, just refresh data
@@ -2166,6 +2356,14 @@ export function DataProvider({ children }) {
       createTask,
       submitTask,
       reviewTask,
+      // Forum
+      listForumCategories,
+      listForumTopics,
+      listForumPosts,
+      createForumTopic,
+      postForumReply,
+      deleteForumTopic,
+      deleteForumPost,
     }),
     [
       hydrated,
@@ -2213,6 +2411,13 @@ export function DataProvider({ children }) {
       createTask,
       submitTask,
       reviewTask,
+      listForumCategories,
+      listForumTopics,
+      listForumPosts,
+      createForumTopic,
+      postForumReply,
+      deleteForumTopic,
+      deleteForumPost,
     ]
   )
 

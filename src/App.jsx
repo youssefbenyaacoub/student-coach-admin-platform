@@ -30,6 +30,11 @@ import StudentSessions from './pages/student/Sessions'
 import StudentAnalytics from './pages/student/Analytics'
 import Messages from './components/common/Messages'
 import Profile from './components/common/Profile'
+
+// Forum Pages
+import ForumHome from './pages/common/forum/ForumHome'
+import CategoryView from './pages/common/forum/CategoryView'
+import TopicView from './pages/common/forum/TopicView'
 import Unauthorized from './pages/Unauthorized'
 import NotFound from './pages/NotFound'
 import { useAuth } from './hooks/useAuth'
@@ -80,6 +85,9 @@ export default function App() {
           path="settings"
           element={<Placeholder title="Settings" message="Platform configuration." />}
         />
+        <Route path="forum" element={<ForumHome />} />
+        <Route path="forum/category/:categoryId" element={<CategoryView />} />
+        <Route path="forum/topic/:topicId" element={<TopicView />} />
       </Route>
 
       <Route
@@ -99,6 +107,9 @@ export default function App() {
         <Route path="deliverables" element={<CoachDeliverables />} />
         <Route path="messages" element={<CoachMessages />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="forum" element={<ForumHome />} />
+        <Route path="forum/category/:categoryId" element={<CategoryView />} />
+        <Route path="forum/topic/:topicId" element={<TopicView />} />
       </Route>
 
       <Route
@@ -119,6 +130,9 @@ export default function App() {
         <Route path="sessions" element={<StudentSessions />} />
         <Route path="messages" element={<Messages />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="forum" element={<ForumHome />} />
+        <Route path="forum/category/:categoryId" element={<CategoryView />} />
+        <Route path="forum/topic/:topicId" element={<TopicView />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
