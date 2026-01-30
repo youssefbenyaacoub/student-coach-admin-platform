@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, User, Home, ClipboardList, Target, MessageCircle, FolderKanban, BarChart3, Users } from 'lucide-react'
+import { LogOut, User, Home, ClipboardList, Target, MessageCircle, FolderKanban, BarChart3, Users, Calendar } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
@@ -35,6 +35,7 @@ export default function StudentPanelLayout() {
     { label: 'My Progress', to: '/student/programs', icon: ClipboardList },
     { label: 'Analytics', to: '/student/analytics', icon: BarChart3 },
     { label: 'Messages', to: '/student/messages', icon: MessageCircle },
+    { label: 'Calendar', to: '/student/calendar', icon: Calendar },
     { label: 'Forum', to: '/student/forum', icon: Users },
     { label: 'Profile', to: '/student/profile', icon: User },
   ]

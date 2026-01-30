@@ -8,6 +8,7 @@ import { DataProvider } from './context/DataContextSupabase.jsx'
 import { ProgramManagementProvider } from './context/ProgramManagementContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
+import { CalendarProvider } from './context/CalendarContext.jsx'
 import Toasts from './components/common/Toasts.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -18,8 +19,10 @@ createRoot(document.getElementById('root')).render(
           <DataProvider>
             <AuthProvider>
               <ProgramManagementProvider>
-                <App />
-                <Toasts />
+                <CalendarProvider>
+                  <App />
+                  <Toasts />
+                </CalendarProvider>
               </ProgramManagementProvider>
             </AuthProvider>
           </DataProvider>

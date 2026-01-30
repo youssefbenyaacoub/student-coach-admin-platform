@@ -38,6 +38,7 @@ import TopicView from './pages/common/forum/TopicView'
 import Unauthorized from './pages/Unauthorized'
 import NotFound from './pages/NotFound'
 import { useAuth } from './hooks/useAuth'
+import CalendarPage from './pages/common/CalendarPage'
 
 function RootRedirect() {
   const { isAuthenticated, role } = useAuth()
@@ -81,6 +82,7 @@ export default function App() {
           path="communications"
           element={<Placeholder title="Communications" message="Platform messaging center." />}
         />
+        <Route path="calendar" element={<CalendarPage />} />
         <Route
           path="settings"
           element={<Placeholder title="Settings" message="Platform configuration." />}
