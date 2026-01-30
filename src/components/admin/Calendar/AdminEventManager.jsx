@@ -3,6 +3,7 @@ import { Plus, Trash2, Calendar as CalendarIcon } from 'lucide-react'
 import { useCalendar } from '../../../context/CalendarContext'
 import Button from '../../common/Button'
 import Card from '../../common/Card'
+
 import { Dialog } from '@headlessui/react'
 
 export default function AdminEventManager() {
@@ -86,8 +87,8 @@ export default function AdminEventManager() {
                         </div>
                         <div className="flex items-start gap-4">
                             <div className={`p-3 rounded-lg ${event.event_type === 'workshop' ? 'bg-purple-100 text-purple-600' :
-                                    event.event_type === 'deadline' ? 'bg-red-100 text-red-600' :
-                                        'bg-blue-100 text-blue-600'
+                                event.event_type === 'deadline' ? 'bg-red-100 text-red-600' :
+                                    'bg-blue-100 text-blue-600'
                                 }`}>
                                 <CalendarIcon className="h-6 w-6" />
                             </div>

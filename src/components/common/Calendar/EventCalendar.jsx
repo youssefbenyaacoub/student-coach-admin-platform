@@ -8,7 +8,7 @@ import enUS from 'date-fns/locale/en-US'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { useCalendar } from '../../../context/CalendarContext'
 import WorkshopRegistration from './WorkshopRegistration'
-import Card from '../../Card'
+import Card from '../Card'
 
 const locales = {
     'en-US': enUS,
