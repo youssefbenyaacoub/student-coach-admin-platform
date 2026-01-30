@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useData } from '../../../hooks/useData'
-const { listForumCategories, listForumTopics, listForumPosts, createForumTopic, getUserById } = useData()
+
 import Card from '../../../components/common/Card'
 import CreateTopicModal from '../../../components/common/forum/CreateTopicModal'
 import { MessageSquare, Plus, ArrowLeft, Clock, User, MessageCircle } from 'lucide-react'
