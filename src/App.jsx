@@ -12,6 +12,7 @@ import AdminApplications from './pages/admin/Applications'
 import Placeholder from './pages/admin/Placeholder'
 import AdminProjects from './pages/admin/Projects'
 import AdminMatching from './pages/admin/Matching'
+import BulkAssignmentTool from './pages/admin/BulkAssignmentTool'
 import CoachDashboard from './pages/coach/Dashboard'
 import CoachAlerts from './pages/coach/Alerts'
 import CoachProjects from './pages/coach/Projects'
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="applications" element={<AdminApplications />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="matching" element={<AdminMatching />} />
+        <Route path="assignments/:programId" element={<BulkAssignmentTool />} />
         <Route
           path="sessions"
           element={<Placeholder title="Sessions overview" message="Coming next." />}
