@@ -75,11 +75,11 @@ export default function StudentPanelLayout() {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) =>
-                  `flex items - center gap - 4 px - 6 py - 4 rounded - 2xl transition - all duration - 300 group
+                  `flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 group
                   ${isActive
                     ? 'bg-student-primary text-white shadow-md translate-x-1'
                     : 'text-slate-500 hover:bg-blue-50 hover:text-student-primary'
-                  } `
+                  }`
                 }
               >
                 <item.icon className="h-6 w-6 stroke-[1.5]" />
@@ -114,14 +114,14 @@ export default function StudentPanelLayout() {
 
       {/* Mobile Nav (Bottom Bar) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        {navItems.map((item) => (
+        {navItems.filter(i => ['Home', 'My Tasks', 'Current Programs', 'Messages', 'Profile'].includes(i.label)).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              `flex flex - col items - center gap - 1 p - 2 rounded - xl transition - colors
-                ${isActive ? 'text-student-primary bg-blue-50' : 'text-slate-400'} `
+              `flex flex-col items-center gap-1 p-2 rounded-xl transition-colors
+                ${isActive ? 'text-student-primary bg-blue-50' : 'text-slate-400'}`
             }
           >
             <item.icon className="h-6 w-6" />

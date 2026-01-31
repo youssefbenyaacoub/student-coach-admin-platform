@@ -32,6 +32,12 @@ export function CalendarProvider({ children }) {
             .select('*')
             .order('start_time', { ascending: true })
 
+        // 2. Fetch coaching sessions (as events)
+        const { data: sessionsData, error: sessionsError } = await supabase
+            .from('coaching_sessions')
+            .select('*, users!coaching_sessions_coach_id_fkey(name)')
+            .order('starts_at', { ascending: true })
+
         // 3. Fetch programs (as events)
         const { data: programsData, error: programsError } = await supabase
             .from('programs')
@@ -63,6 +69,19 @@ export function CalendarProvider({ children }) {
             start: new Date(event.start_time),
             end: new Date(event.end_time),
             isRegistered: myAttendances.includes(event.id)
+        }))
+
+        // 4. Process coaching sessions as calendar events
+        const sessionEvents = (sessionsData ?? []).map(s => ({
+            id: s.id,
+            title: `Coaching: ${s.title}`,
+            description: s.description,
+            start: new Date(s.starts_at),
+            end: new Date(s.ends_at),
+            event_type: 'coaching',
+            coach: s.users?.name,
+            location: s.location,
+            isRegistered: true // Sessions are pre-assigned in this platform
         }))
 
         // 5. Process programs as calendar events

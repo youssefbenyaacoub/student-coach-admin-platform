@@ -58,7 +58,10 @@ export default function ForumHome() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {categories.map((cat) => {
-                    const IconComponent = LucideIcons[cat.icon] || MessageSquare
+                    let IconComponent = MessageSquare
+                    if (cat.icon && LucideIcons[cat.icon]) {
+                        IconComponent = LucideIcons[cat.icon]
+                    }
                     const topicCount = getTopicCount(cat.id)
 
                     return (
