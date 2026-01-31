@@ -34,26 +34,6 @@ export default function Profile() {
     interests: ['AI', 'FinTech', 'Sustainability', 'EdTech']
   })
 
-  // Mock Programs
-  const enrolledPrograms = [
-    {
-      id: 1,
-      name: 'Incubation Batch Q1 2026',
-      status: 'Active',
-      startDate: 'Jan 15, 2026',
-      progress: 35,
-      color: 'text-indigo-600 bg-indigo-50 border-indigo-100'
-    },
-    {
-      id: 2,
-      name: 'Pre-Seed Bootcamp',
-      status: 'Completed',
-      startDate: 'Oct 10, 2025',
-      progress: 100,
-      color: 'text-emerald-600 bg-emerald-50 border-emerald-100'
-    }
-  ]
-
   // DiceBear Avatar URL
   const avatarUrl = getAvatarUrl(seed)
 
@@ -254,30 +234,7 @@ export default function Profile() {
         </div>
 
         <div className="space-y-8">
-          {/* 4. Active Programs */}
-          <Card title="Active Programs" className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
-            <div className="space-y-4 pt-6 p-6">
-              {enrolledPrograms.map(program => (
-                <div key={program.id} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow bg-slate-50/50 dark:bg-slate-800/20">
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{program.name}</p>
-                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${program.status === 'Active' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                      {program.status}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-slate-400 mb-2">
-                    <span>Started {program.startDate}</span>
-                    <span>{program.progress}%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${program.status === 'Active' ? 'bg-indigo-500' : 'bg-emerald-500'}`} style={{ width: `${program.progress}%` }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* 5. Account Settings */}
+          {/* Account Settings */}
           <Card className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
