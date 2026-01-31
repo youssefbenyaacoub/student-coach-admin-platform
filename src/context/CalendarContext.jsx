@@ -32,14 +32,14 @@ export function CalendarProvider({ children }) {
             .select('*')
             .order('start_time', { ascending: true })
 
-        // 2. Fetch coaching sessions (as events)
-        const { data: sessionsData, error: sessionsError } = await supabase
-            .from('coaching_sessions')
-            .select('*, users!coaching_sessions_coach_id_fkey(name)')
-            .order('starts_at', { ascending: true })
+        // 3. Fetch programs (as events)
+        const { data: programsData, error: programsError } = await supabase
+            .from('programs')
+            .select('*')
+            .order('start_date', { ascending: true })
 
-        if (eventsError || sessionsError) {
-            console.error('Error fetching calendar data:', eventsError || sessionsError)
+        if (eventsError || sessionsError || programsError) {
+            console.error('Error fetching calendar data:', eventsError || sessionsError || programsError)
             setLoading(false)
             return
         }
@@ -65,20 +65,19 @@ export function CalendarProvider({ children }) {
             isRegistered: myAttendances.includes(event.id)
         }))
 
-        // 4. Process coaching sessions as calendar events
-        const sessionEvents = (sessionsData ?? []).map(s => ({
-            id: s.id,
-            title: `Coaching: ${s.title}`,
-            description: s.description,
-            start: new Date(s.starts_at),
-            end: new Date(s.ends_at),
-            event_type: 'coaching',
-            coach: s.users?.name,
-            location: s.location,
-            isRegistered: true // Sessions are pre-assigned in this platform
+        // 5. Process programs as calendar events
+        const programEvents = (programsData ?? []).map(p => ({
+            id: p.id,
+            title: `Program: ${p.name}`,
+            description: p.description,
+            start: new Date(p.start_date),
+            end: new Date(p.end_date),
+            event_type: 'program',
+            location: p.location || p.meet_link,
+            isRegistered: currentUser && (p.participantStudentIds || []).includes(currentUser.id)
         }))
 
-        setEvents([...processedEvents, ...sessionEvents])
+        setEvents([...processedEvents, ...sessionEvents, ...programEvents])
         setLoading(false)
     }
 
@@ -89,10 +88,12 @@ export function CalendarProvider({ children }) {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'calendar_events' },
-                () => {
-                    // Refetch all for now to keep it simple and consistent
-                    fetchEvents()
-                }
+                () => fetchEvents()
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'programs' },
+                () => fetchEvents()
             )
             .subscribe()
 

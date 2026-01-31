@@ -26,28 +26,21 @@ export default function StudentPrograms() {
     }
   }
 
-  const { enrolledPrograms, availablePrograms } = useMemo(() => {
-    if (!currentUser?.id || !data) return { enrolledPrograms: [], availablePrograms: [] }
-
+  const { enrolledPrograms } = useMemo(() => {
+    if (!currentUser?.id || !data) return { enrolledPrograms: [] }
     const enrolled = (data.programs ?? []).filter((p) =>
       (p.participantStudentIds ?? []).includes(currentUser.id)
     )
-    const available = (data.programs ?? []).filter(
-      (p) =>
-        !(p.participantStudentIds ?? []).includes(currentUser.id) &&
-        p.status === 'open'
-    )
-
-    return { enrolledPrograms: enrolled, availablePrograms: available }
+    return { enrolledPrograms: enrolled }
   }, [currentUser, data])
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-heading font-bold text-slate-900 dark:text-white">Programs & Resources</h1>
+          <h1 className="text-4xl font-heading font-bold text-slate-900 dark:text-white">My Programs</h1>
           <p className="mt-2 text-lg text-slate-500 font-medium max-w-2xl">
-            Access your learning materials, check delivery details, and manage your journey.
+            Access your learning materials and check delivery details for your current cohorts.
           </p>
         </div>
         <button
@@ -63,7 +56,7 @@ export default function StudentPrograms() {
       <section className="space-y-6">
         <h2 className="text-xl font-heading font-bold text-slate-800 dark:text-white flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-student-primary" />
-          Your Active Paths
+          Active Programs
         </h2>
 
         {enrolledPrograms.length === 0 ? (
@@ -71,8 +64,8 @@ export default function StudentPrograms() {
             <div className="mx-auto h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-slate-400 mb-4">
               <BookOpen className="h-8 w-8" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Not enrolled yet</h3>
-            <p className="text-slate-500 mt-1">Explore available programs below to get started.</p>
+            <h3 className="text-lg font-bold text-slate-900">Not enrolled in any programs yet</h3>
+            <p className="text-slate-500 mt-1">Please contact your administrator or check for invitations.</p>
           </div>
         ) : (
           <div className="grid gap-8 lg:grid-cols-2">
@@ -169,53 +162,6 @@ export default function StudentPrograms() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* SECTION: DISCOVERY */}
-      <section className="space-y-6 pt-10">
-        <h2 className="text-xl font-heading font-bold text-slate-800 dark:text-white">Explore Programs</h2>
-        <div className="grid gap-6 md:grid-cols-3">
-          {availablePrograms.map(program => {
-            const isOneDay = new Date(program.startDate).toDateString() === new Date(program.endDate).toDateString()
-            return (
-              <Card key={program.id} className="flex flex-col h-full rounded-3xl border-slate-100 hover:shadow-lg transition-all">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                      <BookOpen className="h-5 w-5" />
-                    </div>
-                    <div className="flex gap-2">
-                      {isOneDay && <span className="text-[10px] font-bold uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">Bootcamp</span>}
-                      <span className="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">Open</span>
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-lg mb-1">{program.name}</h3>
-                    <p className="text-sm text-slate-500 line-clamp-2">{program.description}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400 capitalize">
-                    {program.deliveryMode === 'online' ? <Video className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
-                    {program.deliveryMode} • {isOneDay ? '1 Day' : `${program.durationWeeks} Weeks`}
-                  </div>
-                </div>
-
-                {/* Secure Meet Link Placeholder */}
-                <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    Link revealed after registration
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => handleJoin(program)}
-                  className={`mt-4 w-full py-2.5 rounded-xl text-white font-bold transition-all shadow-lg ${program.registrationType === 'instant' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-500/20'}`}
-                >
-                  {program.registrationType === 'instant' ? 'Join Now' : 'Apply Now'}
-                </button>
-              </Card>
-            )
-          })}
-        </div>
       </section>
     </div>
   )

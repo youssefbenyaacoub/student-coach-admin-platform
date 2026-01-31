@@ -35,6 +35,8 @@ export default function EventCalendar() {
             backgroundColor = '#ef4444' // red
         } else if (event.event_type === 'coaching') {
             backgroundColor = '#3b82f6' // blue
+        } else if (event.event_type === 'program') {
+            backgroundColor = '#10b981' // emerald
         }
 
         if (event.isRegistered) {
