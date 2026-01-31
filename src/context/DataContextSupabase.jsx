@@ -306,6 +306,7 @@ export function DataProvider({ children }) {
       const [
         usersRes,
         programsRes,
+        applicationsRes,
         sessionsRes,
         deliverablesRes,
         messagesRes,
