@@ -4,6 +4,7 @@ import { useData } from '../../../hooks/useData'
 import { useAuth } from '../../../hooks/useAuth'
 import Card from '../../../components/common/Card'
 import { ArrowLeft, User, Clock, Send, Trash2, MessageCircle } from 'lucide-react'
+import { getAvatarUrl } from '../../../../utils/avatarUtils'
 
 export default function TopicView() {
     const { topicId } = useParams()
@@ -84,8 +85,12 @@ export default function TopicView() {
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
-                                {author?.name?.charAt(0) || <User className="h-5 w-5" />}
+                            <div className="h-10 w-10 rounded-full overflow-hidden ring-2 ring-indigo-50">
+                                <img
+                                    src={getAvatarUrl(author?.name || 'Anonymous')}
+                                    alt="Author"
+                                    className="h-full w-full object-cover"
+                                />
                             </div>
                             <div>
                                 <p className="font-bold text-slate-800 text-sm">{author?.name || 'Anonymous'}</p>
@@ -132,8 +137,12 @@ export default function TopicView() {
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs font-bold">
-                                                {postAuthor?.name?.charAt(0) || <User className="h-3 w-3" />}
+                                            <div className="h-8 w-8 rounded-full overflow-hidden ring-1 ring-slate-100">
+                                                <img
+                                                    src={getAvatarUrl(postAuthor?.name || 'Anonymous')}
+                                                    alt="Author"
+                                                    className="h-full w-full object-cover"
+                                                />
                                             </div>
                                             <div>
                                                 <p className="font-bold text-slate-800 text-xs">{postAuthor?.name || 'Anonymous'}</p>

@@ -3,13 +3,15 @@ import {
   User, Mail, Edit2, Save, X, RefreshCw,
   Target, Rocket, Shield, Clock, Briefcase,
   ChevronRight, ExternalLink, Trash2, Plus,
-  CheckCircle2, AlertCircle
+  CheckCircle2, AlertCircle, Lock, Smartphone,
+  Globe, Zap, Leaf
 } from 'lucide-react'
 import Card from './Card'
 import Modal from './Modal'
 import ConfirmDialog from './ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
+import { getAvatarUrl } from '../../utils/avatarUtils'
 
 export default function Profile() {
   const { currentUser, role } = useAuth()
@@ -28,35 +30,47 @@ export default function Profile() {
     name: currentUser?.name || 'Arij Ben Yaacoub',
     email: currentUser?.email || 'arij.by@incubator.com',
     bio: 'Aspiring entrepreneur focused on sustainable tech solutions. Currently working on a green energy marketplace prototype.',
-    skills: ['React', 'Node.js', 'UI Design', 'Market Research'],
-    interests: ['Renewable Energy', 'Fintech', 'Agrotech', 'B2B SaaS']
+    skills: ['React', 'UI/UX', 'Marketing', 'Prototyping'],
+    interests: ['AI', 'FinTech', 'Sustainability', 'EdTech']
   })
 
-  // Mock Active Project
-  const activeProject = {
-    name: 'EcoFlow Marketplace',
-    stage: 'PROTOTYPE', // IDEA, PROTOTYPE, MVP
-    progress: 65,
-    coach: 'Sarah Johnson',
-    image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=800&auto=format&fit=crop&q=60'
-  }
-
-  // Mock Programs
+  // Mock Active Programs
   const enrolledPrograms = [
-    { id: 1, name: 'Incubation Batch Q1 2026', status: 'Active', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-    { id: 2, name: 'Pre-Seed Bootcamp', status: 'Completed', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' }
+    {
+      id: 1,
+      name: 'Incubation Batch Q1 2026',
+      status: 'Active',
+      startDate: 'Jan 15, 2026',
+      progress: 35,
+      color: 'text-indigo-600 bg-indigo-50 border-indigo-100'
+    },
+    {
+      id: 2,
+      name: 'Pre-Seed Bootcamp',
+      status: 'Completed',
+      startDate: 'Oct 10, 2025',
+      progress: 100,
+      color: 'text-emerald-600 bg-emerald-50 border-emerald-100'
+    }
   ]
 
   // Mock Activity
   const recentActivity = [
-    { id: 1, action: 'Submitted MVP wireframes', time: '2 hours ago', icon: Rocket, color: 'text-blue-500 bg-blue-50' },
-    { id: 2, action: 'Updated task: Competitor Analysis', time: 'Yesterday', icon: Target, color: 'text-amber-500 bg-amber-50' },
-    { id: 3, action: 'Received feedback from Sarah Johnson', time: '2 days ago', icon: Shield, color: 'text-purple-500 bg-purple-50' },
-    { id: 4, action: 'Registered for Product-Market Fit Workshop', time: '3 days ago', icon: Clock, color: 'text-slate-500 bg-slate-50' }
+    { id: 1, action: 'Submitted project idea', time: '2 hours ago', icon: Rocket, color: 'text-blue-500 bg-blue-50' },
+    { id: 2, action: 'Completed task: Wireframes', time: 'Yesterday', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50' },
+    { id: 3, action: 'Coach commented on submission', time: '2 days ago', icon: User, color: 'text-purple-500 bg-purple-50' },
+    { id: 4, action: 'Finalized problem statement', time: '3 days ago', icon: Target, color: 'text-amber-500 bg-amber-50' }
   ]
 
+  // Mock Current Focus
+  const currentFocus = {
+    title: 'Finalize problem statement',
+    description: 'Refine the core value proposition based on latest mentor feedback.',
+    deadline: 'Due in 2 days'
+  }
+
   // DiceBear Avatar URL
-  const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9`
+  const avatarUrl = getAvatarUrl(seed)
 
   // Progress Completion logic
   const completion = useMemo(() => {
@@ -188,7 +202,7 @@ export default function Profile() {
 
           {/* 3. Skills & Interests */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Skills */}
+            {/* Digital Skills */}
             <Card className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
@@ -209,6 +223,7 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-2">
                   {profile.skills.map(skill => (
                     <span key={skill} className="group flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold rounded-full border border-indigo-100 dark:border-indigo-900/50">
+                      <Smartphone size={12} className="opacity-50" />
                       {skill}
                       {isEditing && (
                         <button onClick={() => removeTag('skill', skill)} className="hover:text-red-500"><X size={12} /></button>
@@ -219,7 +234,7 @@ export default function Profile() {
               </div>
             </Card>
 
-            {/* Interests */}
+            {/* Core Interests */}
             <Card className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
@@ -240,6 +255,7 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-2">
                   {profile.interests.map(interest => (
                     <span key={interest} className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-bold rounded-full border border-purple-100 dark:border-purple-900/50">
+                      <Briefcase size={12} className="opacity-50" />
                       {interest}
                       {isEditing && (
                         <button onClick={() => removeTag('interest', interest)} className="hover:text-red-500"><X size={12} /></button>
@@ -251,49 +267,20 @@ export default function Profile() {
             </Card>
           </div>
 
-          {/* 4. Active Project Snapshot */}
+          {/* 4. Current Focus */}
           <Card className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800 overflow-hidden">
-            <div className="flex flex-col md:flex-row">
-              <div className="w-full md:w-48 bg-slate-100 dark:bg-slate-800 overflow-hidden h-48 md:h-auto">
-                <img src={activeProject.image} alt="Project" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" />
-              </div>
-              <div className="flex-1 p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <span className="text-[10px] font-black text-indigo-600 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 rounded-md uppercase tracking-widest mb-2 inline-block">Current Focus</span>
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{activeProject.name}</h3>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="px-3 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full text-[10px] font-black tracking-tighter shadow-sm">
-                      {activeProject.stage}
-                    </span>
-                  </div>
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                  <Target size={24} />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Coach</p>
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{activeProject.coach}</p>
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-right">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Status</p>
-                    <div className="flex items-center justify-end gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                      <p className="text-sm font-bold text-emerald-600">On Track</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs font-bold text-slate-500">
-                    <span>Overall Progress</span>
-                    <span>{activeProject.progress}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-800 dark:bg-white rounded-full transition-all duration-1000 ease-out"
-                      style={{ width: `${activeProject.progress}%` }}
-                    ></div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Current Focus</h3>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{currentFocus.title}</h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">{currentFocus.description}</p>
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 inline-block px-3 py-1 rounded-full">
+                    <Clock size={12} />
+                    {currentFocus.deadline}
                   </div>
                 </div>
               </div>
@@ -302,16 +289,24 @@ export default function Profile() {
         </div>
 
         <div className="space-y-8">
-          {/* 5. My Programs */}
+          {/* 5. Active Programs */}
           <Card title="Active Programs" className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
-            <div className="space-y-3 pt-6 p-6">
+            <div className="space-y-4 pt-6 p-6">
               {enrolledPrograms.map(program => (
-                <div key={program.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all hover:shadow-md ${program.color} cursor-pointer group`}>
-                  <div>
-                    <p className="font-bold text-sm tracking-tight">{program.name}</p>
-                    <p className="text-[10px] opacity-60 font-medium">Click to view dashboard</p>
+                <div key={program.id} className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow bg-slate-50/50 dark:bg-slate-800/20">
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="font-bold text-sm text-slate-900 dark:text-slate-100">{program.name}</p>
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${program.status === 'Active' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {program.status}
+                    </span>
                   </div>
-                  <ChevronRight size={16} className="opacity-40 group-hover:translate-x-1 transition-transform" />
+                  <div className="flex justify-between text-[10px] text-slate-400 mb-2">
+                    <span>Started {program.startDate}</span>
+                    <span>{program.progress}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${program.status === 'Active' ? 'bg-indigo-500' : 'bg-emerald-500'}`} style={{ width: `${program.progress}%` }}></div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -338,39 +333,48 @@ export default function Profile() {
             </div>
           </Card>
 
-          {/* 7. Account Info */}
+          {/* 7. Account Settings */}
           <Card className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold text-slate-400">ACCOUNT TYPE</span>
+                <span className="text-xs font-bold text-slate-400">ACCOUNT</span>
                 <span className="px-2.5 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black rounded-full uppercase italic">
                   {role}
                 </span>
+              </div>
+
+              <div className="space-y-4 mb-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Email Address</label>
+                  <div className="flex items-center gap-2 mt-1 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 text-sm font-medium">
+                    <Mail size={14} />
+                    {profile.email}
+                    <span className="ml-auto text-[10px] bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-500">Read-only</span>
+                  </div>
+                </div>
               </div>
 
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="w-full flex items-center justify-between py-3 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-slate-100 transition-colors"
               >
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Settings & Security</span>
+                <div className="flex items-center gap-2">
+                  <Lock size={14} className="text-slate-400" />
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Security & Password</span>
+                </div>
                 <X size={16} className={`text-slate-400 transition-transform ${showAdvanced ? 'rotate-0' : 'rotate-45'}`} />
               </button>
 
               {showAdvanced && (
                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4 animate-in slide-in-from-top-2 duration-300">
-                  <div className="flex items-center justify-between group">
-                    <span className="text-[10px] font-bold text-slate-400">USER ID REFERENCE</span>
-                    <span className="text-[10px] font-mono text-slate-600 group-hover:text-indigo-600 transition-colors cursor-help">
-                      {currentUser?.id?.slice(0, 12)}...
-                    </span>
+                  <div className="space-y-3">
+                    <p className="text-xs font-bold text-slate-400 uppercase">Change Password</p>
+                    <input type="password" placeholder="Current Password" className="w-full p-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors" />
+                    <input type="password" placeholder="New Password" className="w-full p-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors" />
+                    <button className="w-full py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-all">
+                      Update Password
+                    </button>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400">TWO-FACTOR AUTH</span>
-                    <span className="text-[10px] font-black text-emerald-500">ENABLED</span>
-                  </div>
-                  <button className="w-full py-2 bg-red-50 text-red-600 dark:bg-red-900/20 text-[10px] font-black rounded-lg hover:bg-red-100 transition-all uppercase tracking-widest">
-                    Request Account Deletion
-                  </button>
                 </div>
               )}
             </div>

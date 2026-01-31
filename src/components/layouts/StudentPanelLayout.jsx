@@ -17,6 +17,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import ConfirmDialog from '../common/ConfirmDialog'
 import NotificationsBell from '../common/NotificationsBell'
+import { getAvatarUrl } from '../../utils/avatarUtils'
 
 export default function StudentPanelLayout() {
   const { logout, currentUser } = useAuth()
@@ -59,8 +60,12 @@ export default function StudentPanelLayout() {
         {/* Sidebar - Friendly & Rounded */}
         <aside className="w-64 bg-white m-4 rounded-3xl shadow-sm flex-col border border-blue-100 hidden md:flex">
           <div className="p-8 flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-student-primary shadow-sm">
-              <User className="h-6 w-6" />
+            <div className="h-12 w-12 rounded-full overflow-hidden shadow-sm ring-2 ring-blue-50">
+              <img
+                src={getAvatarUrl(me?.name || currentUser?.email)}
+                alt="Profile"
+                className="h-full w-full object-cover"
+              />
             </div>
             <div>
               <h2 className="font-heading font-bold text-lg text-slate-800">Hello, {me?.name?.split(' ')[0] || 'Student'}!</h2>
