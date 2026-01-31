@@ -33,6 +33,7 @@ import StudentDeliverables from './pages/student/Deliverables'
 import StudentTasks from './pages/student/Tasks'
 import StudentSessions from './pages/student/Sessions'
 import StudentProgress from './pages/student/Progress'
+import StudentResources from './pages/student/Resources'
 import Messages from './components/common/Messages'
 import Profile from './components/common/Profile'
 
@@ -141,6 +142,7 @@ export default function App() {
         <Route path="tasks" element={<StudentTasks />} />
         <Route path="programs" element={<StudentPrograms />} />
         <Route path="progress" element={<StudentProgress />} />
+        <Route path="resources" element={<StudentResources />} />
         <Route path="applications" element={<StudentApplications />} />
         <Route path="deliverables" element={<StudentDeliverables />} />
         <Route path="sessions" element={<StudentSessions />} />

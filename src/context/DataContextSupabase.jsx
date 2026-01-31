@@ -36,6 +36,7 @@ export function DataProvider({ children }) {
     forumCategories: [],
     forumTopics: [],
     forumPosts: [],
+    globalResources: [],
   })
 
   const mapProgram = useCallback((p) => {
@@ -260,6 +261,21 @@ export function DataProvider({ children }) {
     }
   }, [])
 
+  const mapGlobalResource = useCallback((r) => {
+    return {
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      category: r.category,
+      url: r.url,
+      fileType: r.file_type,
+      iconName: r.icon_name,
+      isFeatured: r.is_featured,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }
+  }, [])
+
   const isMissingTableError = useCallback((err) => {
     const code = err?.code
     const msg = String(err?.message ?? '')
@@ -294,6 +310,7 @@ export function DataProvider({ children }) {
         sessionsRes,
         deliverablesRes,
         messagesRes,
+        globalResourcesRes,
       ] = await Promise.all([
         supabase.from('users').select('*'),
         supabase.from('programs').select(`
@@ -312,6 +329,7 @@ export function DataProvider({ children }) {
           submissions(*)
         `),
         supabase.from('messages').select('*'),
+        supabase.from('global_resources').select('*').order('created_at', { ascending: false }),
       ])
 
       // 1. Fetch message deletions (for "delete for me")
@@ -330,6 +348,7 @@ export function DataProvider({ children }) {
       const sessions = (sessionsRes.data || []).map(mapCoachingSession)
       const deliverables = (deliverablesRes.data || []).map(mapDeliverable)
       const messages = (messagesRes.data || []).map(mapMessage)
+      const globalResources = (globalResourcesRes.data ?? []).map(mapGlobalResource)
 
       // 2. Fetch projects & submissions from Supabase.
       let projects = []
@@ -410,6 +429,7 @@ export function DataProvider({ children }) {
         forumCategories,
         forumTopics,
         forumPosts,
+        globalResources,
       })
 
       setHydrated(true)
@@ -417,7 +437,7 @@ export function DataProvider({ children }) {
       console.error('Error fetching data:', error)
       setHydrated(true)
     }
-  }, [mapApplication, mapCoachingSession, mapDeliverable, mapForumCategory, mapForumPost, mapForumTopic, mapMessage, mapMessageDeletion, mapNotification, mapProgram, mapProjectRow, mapProjectSubmissionRow, mapTaskRow])
+  }, [mapApplication, mapCoachingSession, mapDeliverable, mapForumCategory, mapForumPost, mapForumTopic, mapGlobalResource, mapMessage, mapMessageDeletion, mapNotification, mapProgram, mapProjectRow, mapProjectSubmissionRow, mapTaskRow])
 
   const refreshProjects = useCallback(async () => {
     try {

@@ -1,5 +1,17 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, User, Home, ClipboardList, Target, MessageCircle, FolderKanban, BarChart3, Users, Calendar } from 'lucide-react'
+import {
+  LogOut, User, Home, ClipboardList, Target, MessageCircle,
+  Calendar,
+  Users,
+  Settings,
+  Menu,
+  X,
+  Bell,
+  CheckCircle,
+  BarChart3,
+  FolderOpen,
+  FolderKanban
+} from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
@@ -34,6 +46,7 @@ export default function StudentPanelLayout() {
     { label: 'My Tasks', to: '/student/tasks', icon: Target },
     { label: 'Current Programs', to: '/student/programs', icon: ClipboardList },
     { label: 'My Progress', to: '/student/progress', icon: BarChart3 },
+    { label: 'Helpful Documents', to: '/student/resources', icon: FolderOpen },
     { label: 'Messages', to: '/student/messages', icon: MessageCircle },
     { label: 'Calendar', to: '/student/calendar', icon: Calendar },
     { label: 'Forum', to: '/student/forum', icon: Users },
@@ -62,11 +75,11 @@ export default function StudentPanelLayout() {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) =>
-                  `flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 group
+                  `flex items - center gap - 4 px - 6 py - 4 rounded - 2xl transition - all duration - 300 group
                   ${isActive
                     ? 'bg-student-primary text-white shadow-md translate-x-1'
                     : 'text-slate-500 hover:bg-blue-50 hover:text-student-primary'
-                  }`
+                  } `
                 }
               >
                 <item.icon className="h-6 w-6 stroke-[1.5]" />
@@ -107,8 +120,8 @@ export default function StudentPanelLayout() {
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 p-2 rounded-xl transition-colors
-                ${isActive ? 'text-student-primary bg-blue-50' : 'text-slate-400'}`
+              `flex flex - col items - center gap - 1 p - 2 rounded - xl transition - colors
+                ${isActive ? 'text-student-primary bg-blue-50' : 'text-slate-400'} `
             }
           >
             <item.icon className="h-6 w-6" />
