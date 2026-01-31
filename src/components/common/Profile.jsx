@@ -34,7 +34,7 @@ export default function Profile() {
     interests: ['AI', 'FinTech', 'Sustainability', 'EdTech']
   })
 
-  // Mock Active Programs
+  // Mock Programs
   const enrolledPrograms = [
     {
       id: 1,
@@ -53,21 +53,6 @@ export default function Profile() {
       color: 'text-emerald-600 bg-emerald-50 border-emerald-100'
     }
   ]
-
-  // Mock Activity
-  const recentActivity = [
-    { id: 1, action: 'Submitted project idea', time: '2 hours ago', icon: Rocket, color: 'text-blue-500 bg-blue-50' },
-    { id: 2, action: 'Completed task: Wireframes', time: 'Yesterday', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50' },
-    { id: 3, action: 'Coach commented on submission', time: '2 days ago', icon: User, color: 'text-purple-500 bg-purple-50' },
-    { id: 4, action: 'Finalized problem statement', time: '3 days ago', icon: Target, color: 'text-amber-500 bg-amber-50' }
-  ]
-
-  // Mock Current Focus
-  const currentFocus = {
-    title: 'Finalize problem statement',
-    description: 'Refine the core value proposition based on latest mentor feedback.',
-    deadline: 'Due in 2 days'
-  }
 
   // DiceBear Avatar URL
   const avatarUrl = getAvatarUrl(seed)
@@ -266,30 +251,10 @@ export default function Profile() {
               </div>
             </Card>
           </div>
-
-          {/* 4. Current Focus */}
-          <Card className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800 overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-                  <Target size={24} />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Current Focus</h3>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{currentFocus.title}</h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">{currentFocus.description}</p>
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 inline-block px-3 py-1 rounded-full">
-                    <Clock size={12} />
-                    {currentFocus.deadline}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
         </div>
 
         <div className="space-y-8">
-          {/* 5. Active Programs */}
+          {/* 4. Active Programs */}
           <Card title="Active Programs" className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
             <div className="space-y-4 pt-6 p-6">
               {enrolledPrograms.map(program => (
@@ -312,28 +277,7 @@ export default function Profile() {
             </div>
           </Card>
 
-          {/* 6. Recent Activity */}
-          <Card className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
-            <div className="p-6">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Recent Activity</h3>
-              <div className="space-y-6 relative">
-                <div className="absolute left-4 top-2 bottom-2 w-px bg-slate-100 dark:bg-slate-800"></div>
-                {recentActivity.map((activity, idx) => (
-                  <div key={activity.id} className="relative pl-10">
-                    <div className={`absolute left-0 top-1 p-2 rounded-lg z-10 ${activity.color}`}>
-                      <activity.icon size={14} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 leading-snug">{activity.action}</p>
-                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-
-          {/* 7. Account Settings */}
+          {/* 5. Account Settings */}
           <Card className="border-none shadow-sm bg-white dark:bg-slate-900 ring-1 ring-slate-100 dark:ring-slate-800">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
