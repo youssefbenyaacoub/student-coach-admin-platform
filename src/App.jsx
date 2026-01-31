@@ -36,6 +36,7 @@ import StudentProgress from './pages/student/Progress'
 import StudentResources from './pages/student/Resources'
 import Messages from './components/common/Messages'
 import Profile from './components/common/Profile'
+import ResourceManagement from './pages/common/ResourceManagement'
 
 // Forum Pages
 import ForumHome from './pages/common/forum/ForumHome'
@@ -95,6 +96,7 @@ export default function App() {
           path="settings"
           element={<Placeholder title="Settings" message="Platform configuration." />}
         />
+        <Route path="resources" element={<ResourceManagement />} />
         <Route path="forum">
           <Route index element={<ForumHome />} />
           <Route path="category/:categoryId" element={<CategoryView />} />
@@ -118,6 +120,7 @@ export default function App() {
         <Route path="programs" element={<CoachPrograms />} />
         <Route path="sessions" element={<CoachSessions />} />
         <Route path="deliverables" element={<CoachDeliverables />} />
+        <Route path="resources" element={<ResourceManagement />} />
         <Route path="grading" element={<GradingDashboard />} />
         <Route path="grading/:submissionId" element={<GradingInterface />} />
         <Route path="messages" element={<CoachMessages />} />

@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, BarChart3, Users, UserPlus, Settings, Activity, Layers, AlertCircle, Shield, Menu, Search, FolderKanban, MessageCircle, Calendar } from 'lucide-react'
+import { LogOut, BarChart3, Users, UserPlus, Settings, Activity, Layers, AlertCircle, Shield, Menu, Search, FolderKanban, MessageCircle, Calendar, FileText } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useState } from 'react'
 import { useData } from '../../hooks/useData'
@@ -37,6 +37,7 @@ export default function AdminPanelLayout() {
       { label: 'Matching', to: '/admin/matching', icon: UserPlus },
       { label: 'Users', to: '/admin/users', icon: Users },
       { label: 'Forum', to: '/admin/forum', icon: MessageCircle },
+      { label: 'Resources', to: '/admin/resources', icon: FileText },
       { label: 'Calendar', to: '/admin/calendar', icon: Calendar },
       { label: 'Reports', to: '/admin/reports', icon: BarChart3 },
       { label: 'Settings', to: '/admin/settings', icon: Settings },

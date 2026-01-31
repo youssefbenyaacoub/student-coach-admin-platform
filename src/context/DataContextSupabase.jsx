@@ -1942,6 +1942,52 @@ export function DataProvider({ children }) {
     }
   }, [createNotification, data.programs, listStaffUserIds, mapApplication])
 
+  const upsertGlobalResource = useCallback(async (resource) => {
+    try {
+      const payload = {
+        title: resource.title,
+        description: resource.description,
+        category: resource.category,
+        url: resource.url,
+        file_type: resource.fileType,
+        icon_name: resource.iconName || 'FileText',
+        is_featured: !!resource.isFeatured,
+      }
+
+      const { data: created, error } = await supabase
+        .from('global_resources')
+        .upsert(resource.id ? { ...payload, id: resource.id } : payload)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      const mapped = mapGlobalResource(created)
+      setData((prev) => {
+        const other = (prev.globalResources ?? []).filter((r) => r.id !== mapped.id)
+        return { ...prev, globalResources: [mapped, ...other] }
+      })
+      return mapped
+    } catch (error) {
+      console.error('Error upserting global resource:', error)
+      throw error
+    }
+  }, [mapGlobalResource])
+
+  const deleteGlobalResource = useCallback(async (id) => {
+    try {
+      const { error } = await supabase.from('global_resources').delete().eq('id', id)
+      if (error) throw error
+      setData((prev) => ({
+        ...prev,
+        globalResources: (prev.globalResources ?? []).filter((r) => r.id !== id),
+      }))
+    } catch (error) {
+      console.error('Error deleting global resource:', error)
+      throw error
+    }
+  }, [])
+
   const assignCoachToProgram = useCallback(async ({ programId, coachId }) => {
     try {
       const { error } = await supabase
@@ -2488,6 +2534,8 @@ export function DataProvider({ children }) {
       deleteForumTopic,
       deleteForumPost,
       createForumCategory,
+      upsertGlobalResource,
+      deleteGlobalResource,
     ]
   )
 

@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, LayoutDashboard, Users, CheckSquare, MessageSquare, Menu, Globe, Settings, FolderKanban, Target, AlertTriangle, Bell } from 'lucide-react'
+import { LogOut, LayoutDashboard, Users, CheckSquare, MessageSquare, Menu, Globe, Settings, FolderKanban, Target, AlertTriangle, Bell, FileText } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { useState } from 'react'
@@ -38,6 +38,7 @@ export default function CoachPanelLayout() {
     { label: 'Programs', to: '/coach/programs', icon: Globe },
     { label: 'Sessions', to: '/coach/sessions', icon: CheckSquare },
     { label: 'Deliverables', to: '/coach/deliverables', icon: CheckSquare },
+    { label: 'Resources', to: '/coach/resources', icon: FileText },
     { label: 'Messages', to: '/coach/messages', icon: MessageSquare },
     { label: 'Forum', to: '/coach/forum', icon: Users },
   ]
