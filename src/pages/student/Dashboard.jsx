@@ -5,14 +5,77 @@ import {
     CheckCircle2,
     ArrowRight,
     TrendingUp,
+    Zap,
+    Users,
+    FileText,
+    Clock,
+    AlertCircle,
+    Plus,
+    MoreHorizontal
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { formatDateTime } from '../../utils/time'
+import { getAvatarUrl } from '../../utils/avatarUtils'
 
 // Simplified Stage Map for the progress bar
 const STAGE_ORDER = ['Idea', 'Prototype', 'MVP']
+
+// --- UI Components (Internal for Dashboard) ---
+
+const Card = ({ children, className = "", padding = true, interactive = false }) => (
+    <div className={`
+        bg-white border border-slate-200 rounded-lg transition-all duration-200 ease-out
+        ${padding ? 'p-6' : ''}
+        ${interactive ? 'hover:shadow-md hover:border-slate-300 cursor-pointer' : 'shadow-sm'}
+        ${className}
+    `}>
+        {children}
+    </div>
+)
+
+const Button = ({ children, variant = 'primary', className = "", ...props }) => {
+    const variants = {
+        primary: "bg-student-primary text-white hover:bg-blue-600 active:bg-blue-700",
+        secondary: "bg-transparent border border-slate-200 text-slate-600 hover:bg-slate-50",
+        tertiary: "text-student-primary hover:underline px-0 py-0",
+        ghost: "bg-slate-50 text-slate-600 hover:bg-slate-100"
+    }
+    return (
+        <button className={`
+            rounded-sm font-semibold transition-all flex items-center justify-center gap-2 px-4 py-2 text-sm
+            ${variants[variant]}
+            ${className}
+        `} {...props}>
+            {children}
+        </button>
+    )
+}
+
+const ProgressBar = ({ value, className = "" }) => (
+    <div className={`w-full h-1.5 bg-slate-100 rounded-full overflow-hidden ${className}`}>
+        <div
+            className="h-full bg-student-primary transition-all duration-1000 ease-out"
+            style={{ width: `${value}%` }}
+        />
+    </div>
+)
+
+const Badge = ({ children, color = 'blue' }) => {
+    const colors = {
+        blue: 'bg-blue-50 text-blue-600',
+        green: 'bg-emerald-50 text-emerald-600',
+        amber: 'bg-amber-50 text-amber-600',
+        purple: 'bg-indigo-50 text-indigo-600',
+        red: 'bg-rose-50 text-rose-600'
+    }
+    return (
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${colors[color] || colors.blue}`}>
+            {children}
+        </span>
+    )
+}
 
 export default function StudentDashboard() {
     const { currentUser } = useAuth()
@@ -23,14 +86,12 @@ export default function StudentDashboard() {
     const context = useMemo(() => {
         if (!currentUser?.id || !data) return null
         const student = (data.users ?? []).find((u) => u.id === currentUser.id) ?? null
+        const project = (data.projects ?? []).find(p => p.studentId === currentUser.id)
 
-        // Find program participant entry to get the coach
+        // Find Coach
         const program = (data.programs ?? []).find(p => (p.participantStudentIds ?? []).includes(currentUser.id))
         const participant = program?.participants?.find(pp => pp.studentId === currentUser.id)
         const coach = participant?.coachId ? (data.users ?? []).find(u => u.id === participant.coachId) : null
-
-        // Real project data from Supabase
-        const project = (data.projects ?? []).find(p => p.studentId === currentUser.id)
 
         const phaseName = project?.stage || 'Idea'
         const stageIndex = STAGE_ORDER.indexOf(phaseName)
@@ -38,7 +99,7 @@ export default function StudentDashboard() {
 
         return {
             student,
-            project: project || { name: 'New Venture', stage: 'Idea' },
+            project: project || { name: 'New Venture', stage: 'Idea', description: 'Start your entrepreneurial journey today.' },
             phaseName,
             progressPercent,
             coach,
@@ -46,335 +107,234 @@ export default function StudentDashboard() {
         }
     }, [currentUser, data])
 
-    // 2. Derive Actions (Tasks)
-    const todaysTasks = useMemo(() => {
+    // 2. Tasks & Activities
+    const tasks = useMemo(() => {
         if (!currentUser?.id || !data) return []
-        const tasks = []
-
-        // A. Upcoming Sessions (Next 7 days for more visibility on "Formations")
+        const t = []
         const now = new Date()
-        const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
+        // Sessions
         const sessions = (data.coachingSessions ?? [])
-            .filter((s) => (s.attendeeStudentIds ?? []).includes(currentUser.id))
-            .filter((s) => {
-                const d = new Date(s.startsAt)
-                return d >= now && d <= next7Days
-            })
+            .filter((s) => (s.attendeeStudentIds ?? []).includes(currentUser.id) && new Date(s.startsAt) >= now)
             .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
-            .slice(0, 3) // Show up to 3 upcoming sessions
+            .slice(0, 3)
 
-        sessions.forEach(s => {
-            tasks.push({
-                id: s.id,
-                type: 'session',
-                title: s.title,
-                time: s.startsAt,
-                icon: Calendar,
-                actionLabel: 'Details',
-                actionUrl: '/student/sessions'
-            })
-        })
+        sessions.forEach(s => t.push({ id: s.id, title: `Session: ${s.title}`, date: s.startsAt, type: 'session' }))
 
-        // B. Pending Deliverables
+        // Deliverables
         const deliverables = (data.deliverables ?? [])
             .filter(d => (d.assignedStudentIds ?? []).includes(currentUser.id))
             .filter(d => {
                 const sub = (d.submissions ?? []).find(s => s.studentId === currentUser.id)
-                // Filter for anything not Approved or Needs Revision (which usually requires action)
-                if (sub?.status === 'graded' && sub.grade >= 80) return false
-                return true
+                return !sub || sub.status !== 'graded' || sub.grade < 80
             })
             .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-            .slice(0, 2)
+            .slice(0, 3)
 
-        deliverables.forEach(d => {
-            const sub = d.submissions?.find(s => s.studentId === currentUser.id)
-            const isRevision = sub?.status === 'graded' && sub.grade < 80
+        deliverables.forEach(d => t.push({ id: d.id, title: `Submit: ${d.title}`, date: d.dueDate, type: 'deliverable' }))
 
-            tasks.push({
-                id: d.id,
-                type: 'deliverable',
-                title: isRevision ? `Revise: ${d.title}` : `Submit: ${d.title}`,
-                time: d.dueDate,
-                icon: CheckCircle2,
-                actionLabel: isRevision ? 'Revise' : 'Complete',
-                actionUrl: `/student/deliverables`
-            })
-        })
-
-        // Fallback if empty
-        if (tasks.length === 0) {
-            tasks.push({
-                id: 'default-1',
-                type: 'review',
-                title: 'No urgent tasks. Review your project plan.',
-                time: null,
-                icon: TrendingUp,
-                actionLabel: 'View Project',
-                actionUrl: '/student/programs'
-            })
-        }
-
-        return tasks.sort((a, b) => (a.time && b.time ? new Date(a.time) - new Date(b.time) : 0))
+        return t.sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5) // Top 5 mixed
     }, [currentUser, data])
 
-    // 3. Get Coach Message Preview
-    const coachMessage = useMemo(() => {
-        if (!currentUser?.id || !data) return null
-
-        const users = data.users ?? []
-
-        // Find last message from a coach
-        const msgs = (data.messages ?? [])
-            .filter(m => m.receiverId === currentUser.id)
-            .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
-
-        const lastCoachMsg = msgs.find(m => {
-            const sender = users.find(u => u.id === m.senderId)
-            return sender?.role === 'coach'
-        })
-
-        if (!lastCoachMsg) return null
-        const coach = users.find(u => u.id === lastCoachMsg.senderId)
-
-        return {
-            id: lastCoachMsg.id,
-            senderName: coach?.name || 'Coach',
-            senderAvatar: (coach?.name || 'C').charAt(0),
-            text: lastCoachMsg.content ?? '',
-            time: lastCoachMsg.sentAt,
-            isRead: !!lastCoachMsg.readAt
-        }
-
-    }, [currentUser, data])
-
-    if (!context) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <div className="text-muted-foreground">Loading dashboard…</div>
-            </div>
-        )
-    }
+    if (!context) return <div className="p-12 text-center text-slate-400">Loading workspace...</div>
 
     const { student, project, phaseName } = context
-    const displayName = (student?.name || currentUser?.name || 'Student').split(' ')[0]
+    const firstName = (student?.name || currentUser?.name || 'Student').split(' ')[0]
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-500">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-            {/* 1. Welcome Header */}
-            <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-student-primary to-blue-600 px-8 py-10 shadow-xl text-white">
-                <div className="relative z-10">
-                    <h1 className="text-4xl font-heading font-bold tracking-tight mb-3">
-                        Hello, {displayName}. 👋
-                    </h1>
-                    <p className="text-lg text-blue-50 font-medium max-w-xl leading-relaxed">
-                        You're making solid progress on <span className="font-bold text-white bg-white/20 px-2 py-0.5 rounded-lg">{project.name}</span>.
-                        Let's continue pushing the boundaries today.
-                    </p>
+            {/* LEFT COLUMN (8 cols) */}
+            <div className="lg:col-span-8 space-y-8">
 
-                    <div className="mt-8 flex items-center gap-4">
-                        <div className="inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/20 px-4 py-2backdrop-blur-sm">
-                            <span className="text-xs font-bold uppercase tracking-wider text-blue-100">Current Phase</span>
-                            <span className="font-heading font-bold">{phaseName}</span>
-                        </div>
+                {/* 1. Welcome Section */}
+                <section>
+                    <h2 className="text-4xl font-heading font-black text-slate-900 tracking-tighter mb-2">
+                        Welcome back, {firstName} 👋
+                    </h2>
+                    <p className="text-lg text-slate-500 italic">"Every expert was once a beginner. Keep pushing."</p>
+                </section>
+
+                {/* 2. Today's Priorities */}
+                <Card className="bg-slate-50 border-none">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Today's Priorities</h3>
+                        <Button variant="tertiary" onClick={() => navigate('/student/tasks')}>View full schedule →</Button>
                     </div>
-                </div>
-                {/* Decorative background circles */}
-                <div className="absolute top-0 right-0 -mr-20 -mt-20 h-96 w-96 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-64 w-64 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
-            </header>
-
-            <div className="grid gap-8 md:grid-cols-5">
-
-                {/* LEFT COLUMN: Tasks & Progress (wider) */}
-                <div className="md:col-span-3 space-y-8">
-
-                    {/* Today's Focus */}
-                    <section>
-                        <div className="mb-5 flex items-center justify-between">
-                            <h2 className="text-xl font-heading font-bold text-slate-800 flex items-center gap-2">
-                                <CheckCircle2 className="h-5 w-5 text-student-primary" />
-                                Priority Tasks
-                            </h2>
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
-                                {new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
-                            </span>
-                        </div>
-
-                        <div className="space-y-4">
-                            {todaysTasks.map(task => {
-                                const Icon = task.icon
-                                return (
-                                    <div key={task.id} className="group relative flex items-center gap-5 rounded-2xl bg-white p-5 shadow-sm border border-slate-100 transition-all hover:shadow-lg hover:border-student-primary/30 hover:-translate-y-0.5 px-6">
-                                        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-inner ${task.type === 'session'
-                                            ? 'bg-blue-50 text-blue-600'
-                                            : 'bg-emerald-50 text-emerald-600'
-                                            }`}>
-                                            <Icon className="h-7 w-7" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${task.type === 'session' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
-                                                    }`}>
-                                                    {task.type}
-                                                </span>
-                                                {task.time && (
-                                                    <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                                                        • {formatDateTime(task.time)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <h3 className="font-semibold font-heading text-slate-800 text-lg truncate">{task.title}</h3>
-                                        </div>
-                                        <button
-                                            onClick={() => navigate(task.actionUrl)}
-                                            className="shrink-0 rounded-xl bg-slate-50 px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:bg-student-primary hover:text-white hover:shadow-md active:scale-95"
-                                        >
-                                            {task.actionLabel}
-                                        </button>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </section>
-
-                    {/* Project Progress */}
-                    <section>
-                        <h2 className="mb-4 text-xl font-semibold">Current Phase: {phaseName}</h2>
-                        <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 dark:bg-card dark:border-border">
-                            <div className="mb-6 flex justify-between text-sm">
-                                <span className="text-muted-foreground">Start</span>
-                                <span className="font-semibold text-primary">{phaseName} in progress</span>
+                    <div className="space-y-4">
+                        {tasks.length > 0 ? tasks.slice(0, 3).map((task, i) => (
+                            <div key={i} className="flex items-center gap-3 group cursor-pointer" onClick={() => navigate(task.type === 'session' ? '/student/sessions' : '/student/tasks')}>
+                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${task.type === 'session' ? 'border-blue-200 bg-blue-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                                    <div className={`w-2.5 h-2.5 rounded-full ${task.type === 'session' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+                                </div>
+                                <span className="text-sm font-semibold text-slate-700 group-hover:text-student-primary transition-colors">{task.title}</span>
+                                <span className="text-xs text-slate-400 ml-auto">{formatDateTime(task.date)}</span>
                             </div>
-
-                            {/* Visual Stepper */}
-                            <div className="relative mb-2 h-4 w-full rounded-full bg-slate-100 dark:bg-slate-800">
-                                <div
-                                    className="absolute left-0 top-0 h-full rounded-full bg-primary transition-all duration-1000"
-                                    style={{ width: `${context.progressPercent}%` }}
-                                />
-                                {/* Dots */}
-                                {STAGE_ORDER.map((s, i) => (
-                                    <div
-                                        key={s}
-                                        className={`absolute top-1/2 -ml-1.5 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white ${i <= context.stageIndex ? 'bg-primary' : 'bg-slate-300'}`}
-                                        style={{ left: `${(i / (STAGE_ORDER.length - 1)) * 100}%` }}
-                                    ></div>
-                                ))}
-                            </div>
-                            <div className="mt-4 flex justify-between text-xs font-medium text-slate-400">
-                                {STAGE_ORDER.map((p, i) => (
-                                    <div key={p} className={i <= context.stageIndex ? 'text-primary' : ''}>{p}</div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                </div>
-
-                {/* RIGHT COLUMN: Support & Communication */}
-                <div className="md:col-span-2 space-y-6">
-
-                    {/* Coach Card */}
-                    <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg">
-                        <div className="mb-4 flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-lg font-bold backdrop-blur-sm border border-white/20">
-                                {context.coach?.name?.charAt(0) ?? (coachMessage?.senderAvatar ?? 'C')}
-                            </div>
-                            <div>
-                                <div className="font-semibold">{context.coach?.name ?? 'Assigned Coach'}</div>
-                                <div className="text-sm opacity-90">{context.coach ? 'Your primary mentor' : 'Not yet assigned'}</div>
-                            </div>
-                        </div>
-
-                        {coachMessage ? (
-                            <div className="mb-6 rounded-xl bg-white/10 p-4 backdrop-blur-sm">
-                                <div className="mb-1 text-xs opacity-75">Latest message received:</div>
-                                <p className="line-clamp-2 text-sm italic">"{coachMessage.text}"</p>
-                            </div>
-                        ) : (
-                            <div className="mb-6 h-12"></div>
+                        )) : (
+                            <div className="text-sm text-slate-500 italic">No urgent priorities for today. Great job!</div>
                         )}
+                    </div>
+                </Card>
 
-                        <button
-                            onClick={() => {
-                                if (context.coach?.id) {
-                                    window.dispatchEvent(new CustomEvent('sea:open-chat', { detail: { peerId: context.coach.id } }))
-                                } else {
-                                    window.dispatchEvent(new CustomEvent('sea:open-chat', {}))
-                                }
-                            }}
-                            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-student-primary transition-all hover:bg-blue-50 active:scale-95"
-                        >
-                            <MessageCircle className="h-5 w-5" />
-                            Message My Coach
-                        </button>
+                {/* 3. My Ventures (Project Card) */}
+                <section className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">My Venture</h3>
+                        <Button variant="ghost" size="sm" className="h-8" onClick={() => navigate('/student/projects')}>
+                            <Plus className="w-4 h-4" /> Edit Specs
+                        </Button>
                     </div>
 
-                    {/* Deliverables Summary Widget */}
-                    <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:bg-card dark:border-border">
-                        <h3 className="mb-4 font-heading font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                            Deliverables Status
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                                <div className="text-2xl font-bold text-slate-900 dark:text-white">
-                                    {(data.deliverables ?? []).filter(d => d.assignedStudentIds.includes(currentUser.id)).length}
+                    <Card interactive className="flex flex-col md:flex-row gap-8 group" onClick={() => navigate('/student/projects')}>
+                        <div className="w-full md:w-48 h-48 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 border border-slate-200">
+                            <Zap className="w-16 h-16 text-slate-300 group-hover:text-student-primary transition-colors" />
+                        </div>
+
+                        <div className="flex-1 flex flex-col">
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Badge color="green">Active</Badge>
+                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{phaseName} Phase</span>
+                                    </div>
+                                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">{project.name}</h3>
                                 </div>
-                                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Total</div>
+                                <button className="p-1 text-slate-300 hover:text-slate-600"><MoreHorizontal className="w-6 h-6" /></button>
                             </div>
-                            <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
-                                <div className="text-2xl font-bold text-emerald-600">
-                                    {(data.deliverables ?? []).filter(d =>
-                                        d.assignedStudentIds.includes(currentUser.id) &&
-                                        (d.submissions?.find(s => s.studentId === currentUser.id)?.status === 'graded' && d.submissions?.find(s => s.studentId === currentUser.id)?.grade >= 80)
-                                    ).length}
+
+                            <p className="text-slate-500 text-sm leading-relaxed line-clamp-2 mb-6">
+                                {project.description || "No description provided yet. Click to define your venture's mission."}
+                            </p>
+
+                            <div className="mt-auto space-y-4">
+                                <div>
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Phase Progress</span>
+                                        <span className="text-[11px] font-bold text-slate-900">{Math.round(context.progressPercent)}%</span>
+                                    </div>
+                                    <ProgressBar value={context.progressPercent} />
                                 </div>
-                                <div className="text-xs font-bold text-emerald-600/70 uppercase tracking-widest mt-1">Approved</div>
-                            </div>
-                            <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-800/50">
-                                <div className="text-2xl font-bold text-amber-600">
-                                    {(data.deliverables ?? []).filter(d =>
-                                        d.assignedStudentIds.includes(currentUser.id) &&
-                                        (!d.submissions?.some(s => s.studentId === currentUser.id) || (d.submissions?.find(s => s.studentId === currentUser.id)?.status === 'graded' && d.submissions?.find(s => s.studentId === currentUser.id)?.grade < 80))
-                                    ).length}
+                                <div className="flex gap-3">
+                                    <Button className="flex-1" onClick={(e) => { e.stopPropagation(); navigate('/student/projects'); }}>View Strategy</Button>
+                                    <Button variant="secondary" className="flex-1" onClick={(e) => { e.stopPropagation(); navigate('/student/tasks'); }}>Milestones</Button>
                                 </div>
-                                <div className="text-xs font-bold text-amber-600/70 uppercase tracking-widest mt-1">Pending</div>
-                            </div>
-                            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/50">
-                                <div className="text-2xl font-bold text-blue-600">
-                                    {(data.deliverables ?? []).filter(d =>
-                                        d.assignedStudentIds.includes(currentUser.id) &&
-                                        d.submissions?.find(s => s.studentId === currentUser.id)?.status === 'submitted'
-                                    ).length}
-                                </div>
-                                <div className="text-xs font-bold text-blue-600/70 uppercase tracking-widest mt-1">In Review</div>
                             </div>
                         </div>
-                        <button
-                            onClick={() => navigate('/student/deliverables')}
-                            className="w-full mt-6 py-2.5 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
-                        >
-                            View All Deliverables
-                        </button>
-                    </div>
+                    </Card>
+                </section>
 
-                    {/* Quick Tips or Motivation */}
-                    <div className="rounded-2xl border border-border bg-card p-6">
-                        <h3 className="mb-3 font-semibold text-foreground">Tip of the week</h3>
-                        <p className="text-sm text-muted-foreground">
-                            "Don't worry about scalability yet. Do things that don't scale to learn faster from your first customers."
+                {/* 4. Mentor Section */}
+                <section className="space-y-6 pb-8">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Mentor Insights</h3>
+                    <Card className="flex flex-col md:flex-row gap-6">
+                        <div className="h-14 w-14 rounded-full overflow-hidden shrink-0 border border-slate-100 shadow-sm">
+                            <img src={getAvatarUrl(context.coach?.name || 'Coach')} alt="Coach" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                            <div className="flex justify-between">
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-900">{context.coach?.name || 'Pending Assignment'}</h4>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Primary Mentor</p>
+                                </div>
+                                <Button variant="tertiary" onClick={() => navigate('/student/messages')}>Message</Button>
+                            </div>
+                            <p className="text-sm text-slate-600 italic bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                "Focus on identifying your core customer segment before building more features."
+                            </p>
+                        </div>
+                    </Card>
+                </section>
+            </div>
+
+            {/* RIGHT COLUMN (4 cols) */}
+            <div className="lg:col-span-4 space-y-8">
+
+                {/* 1. Quick Access */}
+                <section className="space-y-6">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Quick Access</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                        {[
+                            { label: 'New Task', icon: CheckCircle2, path: '/student/tasks' },
+                            { label: 'Find Mentor', icon: Users, path: '/student/sessions' },
+                            { label: 'Documents', icon: FileText, path: '/student/resources' },
+                            { label: 'Schedule', icon: Calendar, path: '/student/calendar' },
+                        ].map((action, i) => (
+                            <button
+                                key={i}
+                                onClick={() => navigate(action.path)}
+                                className="flex flex-col items-center justify-center gap-3 p-5 bg-white border border-slate-200 rounded-lg hover:border-student-primary hover:shadow-md transition-all group"
+                            >
+                                <div className="p-2.5 bg-slate-50 text-slate-500 rounded-md group-hover:bg-blue-50 group-hover:text-student-primary transition-colors">
+                                    <action.icon className="w-5 h-5" />
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-900">{action.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                {/* 2. Upcoming Events */}
+                <section className="space-y-6">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Upcoming</h3>
+                    <Card padding={false} className="divide-y divide-slate-50">
+                        {tasks.filter(t => t.type === 'session').length > 0 ? (
+                            tasks.filter(t => t.type === 'session').slice(0, 3).map((ev, i) => (
+                                <div key={i} className="p-4 flex gap-4 hover:bg-slate-50 transition-colors cursor-pointer group">
+                                    <div className="p-2 bg-slate-100 text-slate-400 rounded-sm group-hover:bg-white group-hover:text-student-primary transition-all h-fit">
+                                        <Calendar className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-900 leading-tight">{ev.title}</p>
+                                        <p className="text-xs text-slate-400 mt-1 font-medium">{formatDateTime(ev.date)}</p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="p-6 text-center text-xs text-slate-400 font-medium uppercase tracking-wider">No upcoming sessions</div>
+                        )}
+                        <button className="w-full py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-student-primary hover:bg-slate-50 transition-colors">
+                            View Calendar
+                        </button>
+                    </Card>
+                </section>
+
+                {/* 3. Strategic Metrics */}
+                <section className="space-y-6">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Strategic Metrics</h3>
+                    <Card className="space-y-5">
+                        {[
+                            { label: 'Tasks Pending', value: tasks.length, color: 'text-amber-500' },
+                            { label: 'Phase Progress', value: `${Math.round(context.progressPercent)}%`, color: 'text-student-primary' },
+                        ].map((m, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-slate-600">{m.label}</span>
+                                <span className={`text-lg font-bold ${m.color}`}>{m.value}</span>
+                            </div>
+                        ))}
+
+                        <div className="pt-2 border-t border-slate-50">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Quarterly Goal</span>
+                                <span className="text-[10px] font-bold text-slate-900">75%</span>
+                            </div>
+                            <ProgressBar value={75} className="h-1" />
+                        </div>
+                    </Card>
+                </section>
+
+                {/* 4. Pro Card Mockup */}
+                <Card className="bg-student-primary border-none p-8 text-center text-white space-y-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/20 transition-all duration-500" />
+                    <div className="relative z-10">
+                        <h4 className="text-xl font-bold tracking-tight">Venture Pro</h4>
+                        <p className="text-xs text-white/80 mt-2 mb-6 font-medium leading-relaxed">
+                            Unlock deep analytics and unlimited mentor sessions.
                         </p>
-                        <div className="mt-4 flex items-center gap-2 text-xs text-primary font-medium cursor-pointer hover:underline">
-                            Read article <ArrowRight className="h-3 w-3" />
-                        </div>
+                        <button className="w-full py-3 bg-white text-student-primary text-[10px] font-bold uppercase tracking-widest rounded-sm hover:shadow-lg transition-all transform hover:-translate-y-0.5">
+                            Upgrade Now
+                        </button>
                     </div>
-
-                </div>
-
+                </Card>
             </div>
         </div>
     )

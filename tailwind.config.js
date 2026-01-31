@@ -14,25 +14,26 @@ export default {
       colors: {
         // Role-based Layout Colors
         student: {
-           primary: '#4f9cff',
-           secondary: '#a1d99b',
-           bg: '#f0f7ff',
-           card: '#ffffff',
-           text: '#1e293b'
+          primary: '#2D5BFF', // Venture Blue
+          secondary: '#F8FAFC', // Slate 50
+          bg: '#FFFFFF',
+          card: '#FFFFFF',
+          text: '#0F172A', // Slate 900
+          subtext: '#475569' // Slate 500
         },
         coach: {
-           primary: '#5a3e99',
-           secondary: '#2c3e50', 
-           bg: '#f8fafc',
-           card: '#ffffff',
-           text: '#334155'
+          primary: '#5a3e99',
+          secondary: '#2c3e50',
+          bg: '#f8fafc',
+          card: '#ffffff',
+          text: '#334155'
         },
         admin: {
-           primary: '#4a4a4a',
-           accent: '#c0392b',
-           bg: '#f3f4f6', 
-           card: '#ffffff',
-           text: '#111827'
+          primary: '#4a4a4a',
+          accent: '#c0392b',
+          bg: '#f3f4f6',
+          card: '#ffffff',
+          text: '#111827'
         },
 
         background: 'rgb(var(--color-background) / <alpha-value>)',
@@ -122,4 +123,3 @@ export default {
   },
   plugins: [forms, typography],
 }
-
