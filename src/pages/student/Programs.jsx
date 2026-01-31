@@ -94,13 +94,28 @@ export default function StudentPrograms() {
                     </div>
                   </div>
 
+                  {/* Timing & Schedule */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Schedule & Timing</label>
+                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700">
+                      <Calendar className="h-5 w-5 text-indigo-500" />
+                      <div>
+                        <div className="font-bold text-sm">{program.scheduleInfo || 'Schedule not announced yet'}</div>
+                        <div className="text-[10px] text-slate-400 font-medium">
+                          {formatDate(program.startDate)} — {formatDate(program.endDate)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Dynamic Location/Link */}
                   <div className="space-y-3">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Location Details</label>
                     {program.deliveryMode === 'online' ? (
                       <a
-                        href={program.meetLink || '#'}
+                        href={program.meetLink?.startsWith('http') ? program.meetLink : `https://${program.meetLink}`}
                         target="_blank"
+                        rel="noopener noreferrer"
                         className="flex items-center justify-between p-4 rounded-2xl bg-white border border-blue-100 text-blue-600 hover:bg-blue-50 transition-colors group/link"
                       >
                         <span className="font-bold truncate">{program.meetLink || 'Link not set yet'}</span>

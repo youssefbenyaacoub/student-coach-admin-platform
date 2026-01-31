@@ -1,5 +1,5 @@
 import { Dialog } from '@headlessui/react'
-import { Clock, Users, Calendar, CheckCircle } from 'lucide-react'
+import { Clock, Users, Calendar, CheckCircle, MapPin, Video, ExternalLink } from 'lucide-react'
 import Button from '../Button'
 import { formatDate } from '../../../utils/time'
 import { useCalendar } from '../../../context/CalendarContext'
@@ -58,6 +58,19 @@ export default function WorkshopRegistration({ event, isOpen, onClose }) {
                             </div>
                         )}
 
+                        {event.location && (
+                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                                {event.location.startsWith('http') ? <Video size={18} /> : <MapPin size={18} />}
+                                {event.location.startsWith('http') ? (
+                                    <a href={event.location} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
+                                        Join Meeting <ExternalLink size={14} />
+                                    </a>
+                                ) : (
+                                    <span>{event.location}</span>
+                                )}
+                            </div>
+                        )}
+
                         <p className="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg">
                             {event.description || 'No description provided.'}
                         </p>
@@ -67,13 +80,15 @@ export default function WorkshopRegistration({ event, isOpen, onClose }) {
                         <Button variant="secondary" onClick={onClose}>
                             Close
                         </Button>
-                        <Button
-                            onClick={handleAction}
-                            disabled={loading || (!event.isRegistered && isFull)}
-                            className={event.isRegistered ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
-                        >
-                            {loading ? 'Processing...' : event.isRegistered ? 'Unregister' : isFull ? 'Full' : 'Register'}
-                        </Button>
+                        {event.event_type !== 'coaching' && event.event_type !== 'deadline' && (
+                            <Button
+                                onClick={handleAction}
+                                disabled={loading || (!event.isRegistered && isFull)}
+                                className={event.isRegistered ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
+                            >
+                                {loading ? 'Processing...' : event.isRegistered ? 'Unregister' : isFull ? 'Full' : 'Register'}
+                            </Button>
+                        )}
                     </div>
                 </Dialog.Panel>
             </div>

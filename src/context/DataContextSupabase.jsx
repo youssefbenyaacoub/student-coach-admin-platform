@@ -54,6 +54,11 @@ export function DataProvider({ children }) {
       endDate: p.end_date,
       capacity: p.capacity,
       status: p.status,
+      deliveryMode: p.delivery_mode,
+      meetLink: p.meet_link,
+      location: p.location,
+      scheduleInfo: p.schedule_info,
+      resources: p.resources || [],
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       coachIds,
@@ -1681,6 +1686,11 @@ export function DataProvider({ children }) {
         end_date: programData.endDate,
         capacity: programData.capacity,
         status: programData.status,
+        delivery_mode: programData.deliveryMode,
+        meet_link: programData.meetLink,
+        location: programData.location,
+        schedule_info: programData.scheduleInfo,
+        resources: programData.resources,
       }
 
       // For new programs, do NOT send id=null/empty; let Postgres default generate UUID.

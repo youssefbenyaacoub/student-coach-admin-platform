@@ -58,6 +58,7 @@ CREATE TABLE programs (
   delivery_mode TEXT NOT NULL DEFAULT 'presence' CHECK (delivery_mode IN ('online', 'presence')),
   meet_link TEXT, -- For online sessions
   location TEXT, -- For sur place
+  schedule_info TEXT, -- e.g. "Every Monday at 10:00 AM"
   resources JSONB DEFAULT '[]'::jsonb, -- Array of { "title": "...", "url": "..." }
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
