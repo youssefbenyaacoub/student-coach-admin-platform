@@ -7,10 +7,24 @@ import { useData } from '../../hooks/useData'
 import { formatDate } from '../../utils/time'
 import { useNavigate } from 'react-router-dom'
 
+
 export default function StudentPrograms() {
   const { currentUser } = useAuth()
-  const { data } = useData()
+  const { data, createApplication, assignStudentToProgram } = useData()
   const navigate = useNavigate()
+
+  const handleJoin = async (program) => {
+    if (!currentUser?.id) return
+    try {
+      if (program.registrationType === 'instant') {
+        await assignStudentToProgram({ programId: program.id, studentId: currentUser.id })
+      } else {
+        navigate('/student/applications', { state: { programId: program.id } })
+      }
+    } catch (err) {
+      console.error('Error joining program:', err)
+    }
+  }
 
   const { enrolledPrograms, availablePrograms } = useMemo(() => {
     if (!currentUser?.id || !data) return { enrolledPrograms: [], availablePrograms: [] }
@@ -161,32 +175,46 @@ export default function StudentPrograms() {
       <section className="space-y-6 pt-10">
         <h2 className="text-xl font-heading font-bold text-slate-800 dark:text-white">Explore Programs</h2>
         <div className="grid gap-6 md:grid-cols-3">
-          {availablePrograms.map(program => (
-            <Card key={program.id} className="flex flex-col h-full rounded-3xl border-slate-100 hover:shadow-lg transition-all">
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <BookOpen className="h-5 w-5" />
+          {availablePrograms.map(program => {
+            const isOneDay = new Date(program.startDate).toDateString() === new Date(program.endDate).toDateString()
+            return (
+              <Card key={program.id} className="flex flex-col h-full rounded-3xl border-slate-100 hover:shadow-lg transition-all">
+                <div className="flex-1 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <BookOpen className="h-5 w-5" />
+                    </div>
+                    <div className="flex gap-2">
+                      {isOneDay && <span className="text-[10px] font-bold uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">Bootcamp</span>}
+                      <span className="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">Open</span>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">Open</span>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-lg mb-1">{program.name}</h3>
+                    <p className="text-sm text-slate-500 line-clamp-2">{program.description}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400 capitalize">
+                    {program.deliveryMode === 'online' ? <Video className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+                    {program.deliveryMode} • {isOneDay ? '1 Day' : `${program.durationWeeks} Weeks`}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-lg mb-1">{program.name}</h3>
-                  <p className="text-sm text-slate-500 line-clamp-2">{program.description}</p>
+
+                {/* Secure Meet Link Placeholder */}
+                <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Link revealed after registration
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-400 capitalize">
-                  {program.deliveryMode === 'online' ? <Video className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
-                  {program.deliveryMode} • {program.durationWeeks} Weeks
-                </div>
-              </div>
-              <button
-                onClick={() => navigate('/student/applications')}
-                className="mt-6 w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all"
-              >
-                Apply Now
-              </button>
-            </Card>
-          ))}
+
+                <button
+                  onClick={() => handleJoin(program)}
+                  className={`mt-4 w-full py-2.5 rounded-xl text-white font-bold transition-all shadow-lg ${program.registrationType === 'instant' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-500/20'}`}
+                >
+                  {program.registrationType === 'instant' ? 'Join Now' : 'Apply Now'}
+                </button>
+              </Card>
+            )
+          })}
         </div>
       </section>
     </div>

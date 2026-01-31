@@ -391,6 +391,7 @@ export default function AdminPrograms() {
       location: editing?.location ?? '',
       scheduleInfo: editing?.scheduleInfo ?? '',
       resources: editing?.resources ?? [],
+      registrationType: editing?.registrationType ?? 'application',
     }),
     [editing],
   )
@@ -415,6 +416,7 @@ export default function AdminPrograms() {
       location: '',
       scheduleInfo: '',
       resources: [],
+      registrationType: 'application',
     })
     setErrors({})
     setOpen(true)
@@ -438,6 +440,7 @@ export default function AdminPrograms() {
       location: p.location ?? '',
       scheduleInfo: p.scheduleInfo ?? '',
       resources: p.resources ?? [],
+      registrationType: p.registrationType ?? 'application',
     })
     setErrors({})
     setOpen(true)
@@ -806,6 +809,20 @@ export default function AdminPrograms() {
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Registration Type</label>
+            <div className="relative">
+              <select
+                className="w-full appearance-none rounded-xl border-slate-200 border px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-400 bg-white dark:bg-slate-800 dark:border-slate-700"
+                value={form.registrationType}
+                onChange={(e) => setForm((f) => ({ ...f, registrationType: e.target.value }))}
+              >
+                <option value="application">Application based (Wait for approval)</option>
+                <option value="instant">Instant Join (No approval needed)</option>
+              </select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5 dark:text-slate-300">Delivery Mode</label>
@@ -979,8 +996,8 @@ export default function AdminPrograms() {
                   }}
                   placeholder="e.g. Startup Incubation: IDEA → MVP"
                   className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:ring-2 transition-all ${templateFormErrors.name
-                      ? 'border-red-300 focus:ring-red-100'
-                      : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
+                    ? 'border-red-300 focus:ring-red-100'
+                    : 'border-slate-200 focus:border-slate-400 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800'
                     }`}
                   disabled={templateBusy}
                 />
@@ -1060,8 +1077,8 @@ export default function AdminPrograms() {
                           <div
                             key={s.id}
                             className={`rounded-xl border p-3 transition-colors ${isSelected
-                                ? 'border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-900/30'
-                                : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-900/20'
+                              ? 'border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-900/30'
+                              : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-900/20'
                               }`}
                           >
                             <button

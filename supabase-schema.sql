@@ -60,6 +60,7 @@ CREATE TABLE programs (
   location TEXT, -- For sur place
   schedule_info TEXT, -- e.g. "Every Monday at 10:00 AM"
   resources JSONB DEFAULT '[]'::jsonb, -- Array of { "title": "...", "url": "..." }
+  registration_type TEXT NOT NULL DEFAULT 'application' CHECK (registration_type IN ('application', 'instant')),
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

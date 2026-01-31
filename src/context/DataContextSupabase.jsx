@@ -59,6 +59,7 @@ export function DataProvider({ children }) {
       location: p.location,
       scheduleInfo: p.schedule_info,
       resources: p.resources || [],
+      registrationType: p.registration_type || 'application',
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       coachIds,
@@ -1691,6 +1692,7 @@ export function DataProvider({ children }) {
         location: programData.location,
         schedule_info: programData.scheduleInfo,
         resources: programData.resources,
+        registration_type: programData.registrationType || 'application',
       }
 
       // For new programs, do NOT send id=null/empty; let Postgres default generate UUID.
