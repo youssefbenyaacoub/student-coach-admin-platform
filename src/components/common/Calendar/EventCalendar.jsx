@@ -70,19 +70,19 @@ export default function EventCalendar() {
     }
 
     return (
-        <Card className="h-[600px] p-4 bg-white dark:bg-slate-900 border-none shadow-none">
+        <div className="h-[700px] bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800">
             <Calendar
                 localizer={localizer}
                 events={events}
                 startAccessor="start"
                 endAccessor="end"
-                style={{ height: '100%' }}
+                style={{ height: '100%', minHeight: '600px' }}
                 onSelectEvent={(event) => setSelectedEvent(event)}
                 views={['month', 'week', 'day']}
                 view={view}
                 onView={setView}
                 eventPropGetter={eventStyleGetter}
-                className="dark:text-slate-300"
+                className="font-sans"
             />
 
             <WorkshopRegistration
@@ -90,6 +90,6 @@ export default function EventCalendar() {
                 isOpen={!!selectedEvent}
                 onClose={() => setSelectedEvent(null)}
             />
-        </Card>
+        </div>
     )
 }

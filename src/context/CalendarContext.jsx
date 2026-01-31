@@ -26,19 +26,25 @@ export function CalendarProvider({ children }) {
     const fetchEvents = async () => {
         setLoading(true)
 
-        // Fetch events
+        // 1. Fetch generic calendar events
         const { data: eventsData, error: eventsError } = await supabase
             .from('calendar_events')
             .select('*')
             .order('start_time', { ascending: true })
 
-        if (eventsError) {
-            console.error('Error fetching events:', eventsError)
+        // 2. Fetch coaching sessions (as events)
+        const { data: sessionsData, error: sessionsError } = await supabase
+            .from('coaching_sessions')
+            .select('*, users!coaching_sessions_coach_id_fkey(name)')
+            .order('starts_at', { ascending: true })
+
+        if (eventsError || sessionsError) {
+            console.error('Error fetching calendar data:', eventsError || sessionsError)
             setLoading(false)
             return
         }
 
-        // Fetch user's attendances (to mark "registered")
+        // Fetch user's attendances (for workshops/generic events)
         let myAttendances = []
         if (currentUser) {
             const { data: attendanceData } = await supabase
@@ -51,15 +57,28 @@ export function CalendarProvider({ children }) {
             }
         }
 
-        // Process events to native Date objects and add 'isRegistered' flag
-        const processedEvents = eventsData.map(event => ({
+        // 3. Process generic events
+        const processedEvents = (eventsData ?? []).map(event => ({
             ...event,
             start: new Date(event.start_time),
             end: new Date(event.end_time),
             isRegistered: myAttendances.includes(event.id)
         }))
 
-        setEvents(processedEvents)
+        // 4. Process coaching sessions as calendar events
+        const sessionEvents = (sessionsData ?? []).map(s => ({
+            id: s.id,
+            title: `Coaching: ${s.title}`,
+            description: s.description,
+            start: new Date(s.starts_at),
+            end: new Date(s.ends_at),
+            event_type: 'coaching',
+            coach: s.users?.name,
+            location: s.location,
+            isRegistered: true // Sessions are pre-assigned in this platform
+        }))
+
+        setEvents([...processedEvents, ...sessionEvents])
         setLoading(false)
     }
 

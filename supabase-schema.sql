@@ -53,6 +53,13 @@ CREATE TABLE programs (
   end_date TIMESTAMPTZ NOT NULL,
   capacity INTEGER NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('open', 'active', 'archived')),
+  
+  -- New fields for delivery and resources
+  delivery_mode TEXT NOT NULL DEFAULT 'presence' CHECK (delivery_mode IN ('online', 'presence')),
+  meet_link TEXT, -- For online sessions
+  location TEXT, -- For sur place
+  resources JSONB DEFAULT '[]'::jsonb, -- Array of { "title": "...", "url": "..." }
+  
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
