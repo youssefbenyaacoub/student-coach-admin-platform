@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.user_presence (
 CREATE OR REPLACE FUNCTION public.touch_user_presence_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
+  SET search_path = public;
   NEW.updated_at = NOW();
   RETURN NEW;
 END;

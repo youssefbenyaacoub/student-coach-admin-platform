@@ -29,17 +29,37 @@ export default function EventCalendar() {
 
     const eventStyleGetter = (event) => {
         let backgroundColor = '#3b82f6' // default blue
-        if (event.event_type === 'workshop') backgroundColor = '#8b5cf6' // purple
-        if (event.event_type === 'deadline') backgroundColor = '#ef4444' // red
-        if (event.isRegistered) backgroundColor = '#10b981' // green
+        if (event.event_type === 'workshop') {
+            backgroundColor = '#8b5cf6' // purple
+        } else if (event.event_type === 'deadline') {
+            backgroundColor = '#ef4444' // red
+        } else if (event.event_type === 'coaching') {
+            backgroundColor = '#3b82f6' // blue
+        }
+
+        if (event.isRegistered) {
+            // Add a border or distinct style for registered events
+            return {
+                style: {
+                    backgroundColor,
+                    borderRadius: '8px',
+                    opacity: 1,
+                    color: 'white',
+                    border: '2px solid white',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    display: 'block',
+                    fontWeight: 'bold'
+                }
+            }
+        }
 
         return {
             style: {
                 backgroundColor,
-                borderRadius: '6px',
-                opacity: 0.8,
+                borderRadius: '8px',
+                opacity: 0.85,
                 color: 'white',
-                border: '0px',
+                border: 'none',
                 display: 'block'
             }
         }

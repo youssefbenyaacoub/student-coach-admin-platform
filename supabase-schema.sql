@@ -363,6 +363,7 @@ CREATE POLICY "Users can mark own notifications read" ON notifications FOR UPDAT
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
+  SET search_path = public;
   NEW.updated_at = NOW();
   RETURN NEW;
 END;

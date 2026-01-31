@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS alert_rules (
 -- RLS
 ALTER TABLE alert_rules ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Coaches can manage their own rules" ON alert_rules;
 CREATE POLICY "Coaches can manage their own rules" ON alert_rules
   FOR ALL
   USING (auth.uid() = coach_id)
@@ -37,9 +38,11 @@ CREATE TABLE IF NOT EXISTS student_activity_logs (
 -- RLS
 ALTER TABLE student_activity_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Students can view their own logs" ON student_activity_logs;
 CREATE POLICY "Students can view their own logs" ON student_activity_logs
   FOR SELECT USING (auth.uid() = student_id);
 
+DROP POLICY IF EXISTS "Coaches can view logs of students in their programs" ON student_activity_logs;
 CREATE POLICY "Coaches can view logs of students in their programs" ON student_activity_logs
   FOR SELECT USING (
     EXISTS (
@@ -67,9 +70,11 @@ CREATE TABLE IF NOT EXISTS generated_alerts (
 -- RLS
 ALTER TABLE generated_alerts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Coaches can view alerts assigned to them" ON generated_alerts;
 CREATE POLICY "Coaches can view alerts assigned to them" ON generated_alerts
   FOR SELECT USING (auth.uid() = coach_id);
 
+DROP POLICY IF EXISTS "Coaches can update alerts assigned to them" ON generated_alerts;
 CREATE POLICY "Coaches can update alerts assigned to them" ON generated_alerts
   FOR UPDATE USING (auth.uid() = coach_id);
 
@@ -87,6 +92,7 @@ CREATE OR REPLACE FUNCTION public.log_student_activity(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_id UUID;
@@ -103,6 +109,7 @@ CREATE OR REPLACE FUNCTION public.log_message_activity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   -- Only log if sender is a student
@@ -129,6 +136,7 @@ CREATE OR REPLACE FUNCTION public.log_submission_activity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   PERFORM public.log_student_activity(
@@ -155,6 +163,7 @@ CREATE OR REPLACE FUNCTION public.generate_daily_alerts()
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_coach RECORD;

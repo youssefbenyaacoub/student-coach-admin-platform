@@ -11,27 +11,8 @@ import { useAuth } from '../../hooks/useAuth'
 import { useData } from '../../hooks/useData'
 import { formatDateTime } from '../../utils/time'
 
-// Mock project phases for a simpler progress view
-const PROJECT_PHASES = ['Ideation', 'Validation', 'MVP', 'Growth']
-
-// Mock project data for specific students (Simplified)
-const PROJECT_DATA = {
-    u_student_1: {
-        name: 'EcoEat',
-        phaseIndex: 2, // MVP
-        nextMilestone: 'Prototype Demo',
-    },
-    u_student_2: {
-        name: 'FinHacks',
-        phaseIndex: 1, // Validation
-        nextMilestone: 'Customer Interviews',
-    },
-    default: {
-        name: 'New Venture',
-        phaseIndex: 0,
-        nextMilestone: 'Problem Statement',
-    },
-}
+// Simplified Stage Map for the progress bar
+const STAGE_ORDER = ['Idea', 'Prototype', 'MVP']
 
 export default function StudentDashboard() {
     const { currentUser } = useAuth()
@@ -48,11 +29,21 @@ export default function StudentDashboard() {
         const participant = program?.participants?.find(pp => pp.studentId === currentUser.id)
         const coach = participant?.coachId ? (data.users ?? []).find(u => u.id === participant.coachId) : null
 
-        const project = PROJECT_DATA[currentUser.id] || PROJECT_DATA[student?.id] || PROJECT_DATA.default
-        const phaseName = PROJECT_PHASES[project.phaseIndex]
-        const progressPercent = ((project.phaseIndex + 0.5) / PROJECT_PHASES.length) * 100
+        // Real project data from Supabase
+        const project = (data.projects ?? []).find(p => p.studentId === currentUser.id)
 
-        return { student, project, phaseName, progressPercent, coach }
+        const phaseName = project?.stage || 'Idea'
+        const stageIndex = STAGE_ORDER.indexOf(phaseName)
+        const progressPercent = stageIndex === -1 ? 0 : ((stageIndex + 0.5) / STAGE_ORDER.length) * 100
+
+        return {
+            student,
+            project: project || { name: 'New Venture', stage: 'Idea' },
+            phaseName,
+            progressPercent,
+            coach,
+            stageIndex
+        }
     }, [currentUser, data])
 
     // 2. Derive Actions (Tasks)
@@ -60,51 +51,54 @@ export default function StudentDashboard() {
         if (!currentUser?.id || !data) return []
         const tasks = []
 
-        // A. Upcoming Sessions (Next 48h)
+        // A. Upcoming Sessions (Next 7 days for more visibility on "Formations")
         const now = new Date()
-        const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+        const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
         const sessions = (data.coachingSessions ?? [])
             .filter((s) => (s.attendeeStudentIds ?? []).includes(currentUser.id))
             .filter((s) => {
                 const d = new Date(s.startsAt)
-                return d >= now && d <= next48h
+                return d >= now && d <= next7Days
             })
-            .slice(0, 1) // Just the next one
+            .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
+            .slice(0, 3) // Show up to 3 upcoming sessions
 
         sessions.forEach(s => {
             tasks.push({
                 id: s.id,
                 type: 'session',
-                title: `Coaching Session: ${s.title}`,
+                title: s.title,
                 time: s.startsAt,
                 icon: Calendar,
-                actionLabel: 'Join Room',
+                actionLabel: 'Details',
                 actionUrl: '/student/sessions'
             })
         })
 
-        // B. Pending Deliverables (Overdue or Due Soon)
+        // B. Pending Deliverables
         const deliverables = (data.deliverables ?? [])
             .filter(d => (d.assignedStudentIds ?? []).includes(currentUser.id))
             .filter(d => {
-                // Not submitted
                 const sub = (d.submissions ?? []).find(s => s.studentId === currentUser.id)
-                if (sub) return false
-                // Due soon?
-                const due = new Date(d.dueDate)
-                return due <= next48h // Overdue or due in 48h
+                // Filter for anything not Approved or Needs Revision (which usually requires action)
+                if (sub?.status === 'graded' && sub.grade >= 80) return false
+                return true
             })
+            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
             .slice(0, 2)
 
         deliverables.forEach(d => {
+            const sub = d.submissions?.find(s => s.studentId === currentUser.id)
+            const isRevision = sub?.status === 'graded' && sub.grade < 80
+
             tasks.push({
                 id: d.id,
                 type: 'deliverable',
-                title: `Submit: ${d.title}`,
+                title: isRevision ? `Revise: ${d.title}` : `Submit: ${d.title}`,
                 time: d.dueDate,
                 icon: CheckCircle2,
-                actionLabel: 'Complete',
+                actionLabel: isRevision ? 'Revise' : 'Complete',
                 actionUrl: `/student/deliverables`
             })
         })
@@ -114,7 +108,7 @@ export default function StudentDashboard() {
             tasks.push({
                 id: 'default-1',
                 type: 'review',
-                title: 'Review your project plan',
+                title: 'No urgent tasks. Review your project plan.',
                 time: null,
                 icon: TrendingUp,
                 actionLabel: 'View Project',
@@ -246,13 +240,13 @@ export default function StudentDashboard() {
                         </div>
                     </section>
 
-                    {/* Project Progress (Simplified) */}
+                    {/* Project Progress */}
                     <section>
                         <h2 className="mb-4 text-xl font-semibold">Current Phase: {phaseName}</h2>
                         <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 dark:bg-card dark:border-border">
                             <div className="mb-6 flex justify-between text-sm">
                                 <span className="text-muted-foreground">Start</span>
-                                <span className="font-semibold text-primary">{project.nextMilestone} next</span>
+                                <span className="font-semibold text-primary">{phaseName} in progress</span>
                             </div>
 
                             {/* Visual Stepper */}
@@ -262,15 +256,17 @@ export default function StudentDashboard() {
                                     style={{ width: `${context.progressPercent}%` }}
                                 />
                                 {/* Dots */}
-                                <div className="absolute top-1/2 -ml-1 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white bg-primary" style={{ left: '0%' }}></div>
-                                <div className="absolute top-1/2 -ml-1 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white bg-primary" style={{ left: '25%' }}></div>
-                                <div className="absolute top-1/2 -ml-1 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white bg-primary" style={{ left: '50%' }}></div>
-                                <div className="absolute top-1/2 -ml-1 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white bg-slate-300" style={{ left: '75%' }}></div>
-                                <div className="absolute top-1/2 -ml-1 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white bg-slate-300" style={{ left: '100%' }}></div>
+                                {STAGE_ORDER.map((s, i) => (
+                                    <div
+                                        key={s}
+                                        className={`absolute top-1/2 -ml-1.5 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white ${i <= context.stageIndex ? 'bg-primary' : 'bg-slate-300'}`}
+                                        style={{ left: `${(i / (STAGE_ORDER.length - 1)) * 100}%` }}
+                                    ></div>
+                                ))}
                             </div>
                             <div className="mt-4 flex justify-between text-xs font-medium text-slate-400">
-                                {PROJECT_PHASES.map((p, i) => (
-                                    <div key={p} className={i <= project.phaseIndex ? 'text-primary' : ''}>{p}</div>
+                                {STAGE_ORDER.map((p, i) => (
+                                    <div key={p} className={i <= context.stageIndex ? 'text-primary' : ''}>{p}</div>
                                 ))}
                             </div>
                         </div>
@@ -314,6 +310,55 @@ export default function StudentDashboard() {
                         >
                             <MessageCircle className="h-5 w-5" />
                             Message My Coach
+                        </button>
+                    </div>
+
+                    {/* Deliverables Summary Widget */}
+                    <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:bg-card dark:border-border">
+                        <h3 className="mb-4 font-heading font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                            Deliverables Status
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                                    {(data.deliverables ?? []).filter(d => d.assignedStudentIds.includes(currentUser.id)).length}
+                                </div>
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Total</div>
+                            </div>
+                            <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                                <div className="text-2xl font-bold text-emerald-600">
+                                    {(data.deliverables ?? []).filter(d =>
+                                        d.assignedStudentIds.includes(currentUser.id) &&
+                                        (d.submissions?.find(s => s.studentId === currentUser.id)?.status === 'graded' && d.submissions?.find(s => s.studentId === currentUser.id)?.grade >= 80)
+                                    ).length}
+                                </div>
+                                <div className="text-xs font-bold text-emerald-600/70 uppercase tracking-widest mt-1">Approved</div>
+                            </div>
+                            <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-800/50">
+                                <div className="text-2xl font-bold text-amber-600">
+                                    {(data.deliverables ?? []).filter(d =>
+                                        d.assignedStudentIds.includes(currentUser.id) &&
+                                        (!d.submissions?.some(s => s.studentId === currentUser.id) || (d.submissions?.find(s => s.studentId === currentUser.id)?.status === 'graded' && d.submissions?.find(s => s.studentId === currentUser.id)?.grade < 80))
+                                    ).length}
+                                </div>
+                                <div className="text-xs font-bold text-amber-600/70 uppercase tracking-widest mt-1">Pending</div>
+                            </div>
+                            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/50">
+                                <div className="text-2xl font-bold text-blue-600">
+                                    {(data.deliverables ?? []).filter(d =>
+                                        d.assignedStudentIds.includes(currentUser.id) &&
+                                        d.submissions?.find(s => s.studentId === currentUser.id)?.status === 'submitted'
+                                    ).length}
+                                </div>
+                                <div className="text-xs font-bold text-blue-600/70 uppercase tracking-widest mt-1">In Review</div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => navigate('/student/deliverables')}
+                            className="w-full mt-6 py-2.5 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
+                        >
+                            View All Deliverables
                         </button>
                     </div>
 

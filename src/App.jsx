@@ -13,6 +13,7 @@ import Placeholder from './pages/admin/Placeholder'
 import AdminProjects from './pages/admin/Projects'
 import AdminMatching from './pages/admin/Matching'
 import BulkAssignmentTool from './pages/admin/BulkAssignmentTool'
+import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
 import CoachDashboard from './pages/coach/Dashboard'
 import CoachAlerts from './pages/coach/Alerts'
 import CoachProjects from './pages/coach/Projects'
@@ -31,7 +32,6 @@ import StudentApplications from './pages/student/Applications'
 import StudentDeliverables from './pages/student/Deliverables'
 import StudentTasks from './pages/student/Tasks'
 import StudentSessions from './pages/student/Sessions'
-import StudentAnalytics from './pages/student/Analytics'
 import Messages from './components/common/Messages'
 import Profile from './components/common/Profile'
 
@@ -75,6 +75,7 @@ export default function App() {
         <Route path="users" element={<AdminUsers />} />
         <Route path="matching" element={<AdminMatching />} />
         <Route path="assignments/:programId" element={<BulkAssignmentTool />} />
+        <Route path="analytics" element={<AnalyticsDashboard />} />
         <Route
           path="sessions"
           element={<Placeholder title="Sessions overview" message="Coming next." />}
@@ -138,7 +139,6 @@ export default function App() {
         <Route path="projects" element={<StudentProjects />} />
         <Route path="tasks" element={<StudentTasks />} />
         <Route path="programs" element={<StudentPrograms />} />
-        <Route path="analytics" element={<StudentAnalytics />} />
         <Route path="applications" element={<StudentApplications />} />
         <Route path="deliverables" element={<StudentDeliverables />} />
         <Route path="sessions" element={<StudentSessions />} />

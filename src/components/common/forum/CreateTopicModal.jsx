@@ -8,21 +8,25 @@ export default function CreateTopicModal({ open, categoryId, onClose, onCreated 
     const [formData, setFormData] = useState({
         title: '',
         content: '',
+        selectedCategoryId: categoryId || '',
     })
+
+    const categories = useData().listForumCategories()
 
     const onSubmit = async (e) => {
         e.preventDefault()
-        if (!formData.title.trim() || !formData.content.trim()) return
+        const catId = categoryId || formData.selectedCategoryId
+        if (!catId || !formData.title.trim() || !formData.content.trim()) return
 
         setBusy(true)
         try {
             await onCreated({
-                categoryId,
+                categoryId: catId,
                 authorId: currentUser.id,
                 title: formData.title,
                 content: formData.content,
             })
-            setFormData({ title: '', content: '' })
+            setFormData({ title: '', content: '', selectedCategoryId: categoryId || '' })
             onClose()
         } finally {
             setBusy(false)
@@ -48,7 +52,7 @@ export default function CreateTopicModal({ open, categoryId, onClose, onCreated 
                         form="create-topic-form"
                         type="submit"
                         className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm shadow-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={busy || !formData.title.trim() || !formData.content.trim()}
+                        disabled={busy || (!categoryId && !formData.selectedCategoryId) || !formData.title.trim() || !formData.content.trim()}
                     >
                         {busy ? 'Creating...' : 'Create Topic'}
                     </button>
@@ -56,6 +60,23 @@ export default function CreateTopicModal({ open, categoryId, onClose, onCreated 
             }
         >
             <form id="create-topic-form" onSubmit={onSubmit} className="space-y-4">
+                {!categoryId && (
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Select Category</label>
+                        <select
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-white"
+                            required
+                            value={formData.selectedCategoryId}
+                            onChange={(e) => setFormData({ ...formData, selectedCategoryId: e.target.value })}
+                            disabled={busy}
+                        >
+                            <option value="">Select a category...</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Topic Title</label>
                     <input

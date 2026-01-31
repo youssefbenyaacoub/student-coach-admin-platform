@@ -2299,6 +2299,29 @@ export function DataProvider({ children }) {
     }
   }, [])
 
+  const createForumCategory = useCallback(async ({ name, description, icon }) => {
+    try {
+      const { data: inserted, error } = await supabase
+        .from('forum_categories')
+        .insert({
+          name: String(name).trim(),
+          description: String(description ?? '').trim(),
+          icon: icon || 'MessageSquare',
+          order_index: (data.forumCategories ?? []).length,
+        })
+        .select('*')
+        .single()
+
+      if (error) throw error
+      const mapped = mapForumCategory(inserted)
+      setData((prev) => ({ ...prev, forumCategories: [...(prev.forumCategories ?? []), mapped] }))
+      return mapped
+    } catch (error) {
+      console.error('Error creating forum category:', error)
+      throw error
+    }
+  }, [data.forumCategories, mapForumCategory])
+
   const reset = useCallback(async () => {
     // This would require careful consideration in production
     // For now, just refresh data
@@ -2364,6 +2387,7 @@ export function DataProvider({ children }) {
       postForumReply,
       deleteForumTopic,
       deleteForumPost,
+      createForumCategory,
     }),
     [
       hydrated,

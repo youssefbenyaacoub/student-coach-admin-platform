@@ -91,6 +91,7 @@ ALTER TABLE assignment_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE assignment_drafts ENABLE ROW LEVEL SECURITY;
 
 -- Assignment History Policies
+DROP POLICY IF EXISTS "Admins can view all assignment history" ON assignment_history;
 CREATE POLICY "Admins can view all assignment history"
   ON assignment_history FOR SELECT
   TO authenticated
@@ -102,6 +103,7 @@ CREATE POLICY "Admins can view all assignment history"
     )
   );
 
+DROP POLICY IF EXISTS "Admins can insert assignment history" ON assignment_history;
 CREATE POLICY "Admins can insert assignment history"
   ON assignment_history FOR INSERT
   TO authenticated
@@ -114,6 +116,7 @@ CREATE POLICY "Admins can insert assignment history"
   );
 
 -- Referent Expertise Policies
+DROP POLICY IF EXISTS "Admins can view all referent expertise" ON referent_expertise;
 CREATE POLICY "Admins can view all referent expertise"
   ON referent_expertise FOR SELECT
   TO authenticated
@@ -125,11 +128,13 @@ CREATE POLICY "Admins can view all referent expertise"
     )
   );
 
+DROP POLICY IF EXISTS "Referents can view own expertise" ON referent_expertise;
 CREATE POLICY "Referents can view own expertise"
   ON referent_expertise FOR SELECT
   TO authenticated
   USING (referent_id = auth.uid());
 
+DROP POLICY IF EXISTS "Admins can manage referent expertise" ON referent_expertise;
 CREATE POLICY "Admins can manage referent expertise"
   ON referent_expertise FOR ALL
   TO authenticated
@@ -142,6 +147,7 @@ CREATE POLICY "Admins can manage referent expertise"
   );
 
 -- Assignment Rules Policies
+DROP POLICY IF EXISTS "Admins can view assignment rules" ON assignment_rules;
 CREATE POLICY "Admins can view assignment rules"
   ON assignment_rules FOR SELECT
   TO authenticated
@@ -153,6 +159,7 @@ CREATE POLICY "Admins can view assignment rules"
     )
   );
 
+DROP POLICY IF EXISTS "Admins can manage assignment rules" ON assignment_rules;
 CREATE POLICY "Admins can manage assignment rules"
   ON assignment_rules FOR ALL
   TO authenticated
@@ -165,6 +172,7 @@ CREATE POLICY "Admins can manage assignment rules"
   );
 
 -- Assignment Drafts Policies
+DROP POLICY IF EXISTS "Admins can view own drafts" ON assignment_drafts;
 CREATE POLICY "Admins can view own drafts"
   ON assignment_drafts FOR SELECT
   TO authenticated
@@ -177,6 +185,7 @@ CREATE POLICY "Admins can view own drafts"
     )
   );
 
+DROP POLICY IF EXISTS "Admins can manage own drafts" ON assignment_drafts;
 CREATE POLICY "Admins can manage own drafts"
   ON assignment_drafts FOR ALL
   TO authenticated
@@ -191,6 +200,7 @@ CREATE OR REPLACE FUNCTION public.get_referent_workload(p_referent_id UUID, p_pr
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_current_students INTEGER;
@@ -244,6 +254,7 @@ CREATE OR REPLACE FUNCTION public.calculate_compatibility_score(
 RETURNS NUMERIC
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_student RECORD;
@@ -330,6 +341,7 @@ CREATE OR REPLACE FUNCTION public.validate_assignment(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_workload JSONB;
@@ -383,6 +395,7 @@ CREATE OR REPLACE FUNCTION public.bulk_assign_students(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_assignment JSONB;
@@ -448,6 +461,7 @@ CREATE OR REPLACE FUNCTION public.auto_assign_students(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_student RECORD;
@@ -523,6 +537,7 @@ $$;
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
+  SET search_path = public;
   NEW.updated_at = NOW();
   RETURN NEW;
 END;

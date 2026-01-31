@@ -33,7 +33,6 @@ export default function StudentPanelLayout() {
     { label: 'Projects', to: '/student/projects', icon: FolderKanban },
     { label: 'My Tasks', to: '/student/tasks', icon: Target },
     { label: 'My Progress', to: '/student/programs', icon: ClipboardList },
-    { label: 'Analytics', to: '/student/analytics', icon: BarChart3 },
     { label: 'Messages', to: '/student/messages', icon: MessageCircle },
     { label: 'Calendar', to: '/student/calendar', icon: Calendar },
     { label: 'Forum', to: '/student/forum', icon: Users },
