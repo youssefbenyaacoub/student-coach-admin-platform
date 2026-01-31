@@ -306,11 +306,9 @@ export function DataProvider({ children }) {
       const [
         usersRes,
         programsRes,
-        applicationsRes,
         sessionsRes,
         deliverablesRes,
         messagesRes,
-        globalResourcesRes,
       ] = await Promise.all([
         supabase.from('users').select('*'),
         supabase.from('programs').select(`
@@ -329,8 +327,23 @@ export function DataProvider({ children }) {
           submissions(*)
         `),
         supabase.from('messages').select('*'),
-        supabase.from('global_resources').select('*').order('created_at', { ascending: false }),
       ])
+
+      // 0. Fetch global resources (optional/new table)
+      let globalResources = []
+      try {
+        const { data: resData, error: resError } = await supabase
+          .from('global_resources')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (resError) throw resError
+        globalResources = (resData || []).map(mapGlobalResource)
+      } catch (err) {
+        if (!isMissingTableError(err)) {
+          console.warn('Could not fetch global_resources:', err)
+        }
+      }
 
       // 1. Fetch message deletions (for "delete for me")
       let messageDeletions = []
@@ -348,7 +361,6 @@ export function DataProvider({ children }) {
       const sessions = (sessionsRes.data || []).map(mapCoachingSession)
       const deliverables = (deliverablesRes.data || []).map(mapDeliverable)
       const messages = (messagesRes.data || []).map(mapMessage)
-      const globalResources = (globalResourcesRes.data ?? []).map(mapGlobalResource)
 
       // 2. Fetch projects & submissions from Supabase.
       let projects = []

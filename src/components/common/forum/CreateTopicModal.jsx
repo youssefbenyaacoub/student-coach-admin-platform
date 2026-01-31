@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import Modal from '../Modal'
 import { useAuth } from '../../../hooks/useAuth'
+import { useData } from '../../../hooks/useData'
 
 export default function CreateTopicModal({ open, categoryId, onClose, onCreated }) {
     const { currentUser } = useAuth()
+    const { listForumCategories } = useData()
     const [busy, setBusy] = useState(false)
     const [formData, setFormData] = useState({
         title: '',
@@ -11,7 +13,7 @@ export default function CreateTopicModal({ open, categoryId, onClose, onCreated 
         selectedCategoryId: categoryId || '',
     })
 
-    const categories = useData().listForumCategories()
+    const categories = listForumCategories()
 
     const onSubmit = async (e) => {
         e.preventDefault()

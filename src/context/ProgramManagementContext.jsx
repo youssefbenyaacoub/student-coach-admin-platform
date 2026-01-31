@@ -109,6 +109,11 @@ export function ProgramManagementProvider({ children }) {
         .order('updated_at', { ascending: false })
       if (error) throw error
       setTemplates((data ?? []).map(mapTemplate))
+    } catch (err) {
+      // Silence legacy table 404s
+      if (!String(err?.message || '').toLowerCase().includes('relation') && !String(err?.message || '').toLowerCase().includes('not find the table')) {
+        console.warn('Error fetching templates:', err)
+      }
     } finally {
       setBusy(false)
     }
@@ -373,15 +378,23 @@ export function ProgramManagementProvider({ children }) {
       return
     }
 
-    const { data, error } = await supabase
-      .from('program_instances')
-      .select('*')
-      .order('updated_at', { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from('program_instances')
+        .select('*')
+        .order('updated_at', { ascending: false })
 
-    if (error) throw error
-    const mapped = (data ?? []).map(mapInstance)
-    setInstances(mapped)
-    return mapped
+      if (error) throw error
+      const mapped = (data ?? []).map(mapInstance)
+      setInstances(mapped)
+      return mapped
+    } catch (err) {
+      // Silence legacy table 404s
+      if (!String(err?.message || '').toLowerCase().includes('relation') && !String(err?.message || '').toLowerCase().includes('not find the table')) {
+        console.warn('Error fetching instances:', err)
+      }
+      return []
+    }
   }, [currentUser?.id])
 
   const fetchInstanceDetails = useCallback(async (instanceId) => {
