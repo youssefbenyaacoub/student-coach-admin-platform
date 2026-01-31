@@ -11,7 +11,8 @@ import {
     Clock,
     AlertCircle,
     Plus,
-    MoreHorizontal
+    MoreHorizontal,
+    Settings
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
