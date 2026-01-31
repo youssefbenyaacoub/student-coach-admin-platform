@@ -4,7 +4,7 @@ import { useData } from '../../../hooks/useData'
 import { useAuth } from '../../../hooks/useAuth'
 import Card from '../../../components/common/Card'
 import { ArrowLeft, User, Clock, Send, Trash2, MessageCircle } from 'lucide-react'
-import { getAvatarUrl } from '../../../../utils/avatarUtils'
+import { getAvatarUrl } from '../../../utils/avatarUtils'
 
 export default function TopicView() {
     const { topicId } = useParams()
